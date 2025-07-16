@@ -30,7 +30,7 @@ export default function LoadingScreen({ navigation }: { navigation: any }) {
       {/* Main Image */}
       <View style={styles.centerContent}>
         <Image
-          source={require('../logo.png')}
+          source={require('../assets/logo.jpg')}
           style={styles.image}
           resizeMode="contain"
         />
