@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, ScrollView, Dimensions, Alert, Image } from 'react-native';
-import { Card, Title, Paragraph, Button, Surface, Text, TextInput, Chip, ActivityIndicator } from 'react-native-paper';
+import { Card, Button, Surface, Text, TextInput, Chip, ActivityIndicator } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 
@@ -173,15 +173,13 @@ export default function UploadPhotoScreen({ navigation, route }: UploadPhotoScre
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <Surface style={styles.header}>
-          <Title style={styles.headerTitle}>पौधे का फोटो अपलोड करें</Title>
-          <Paragraph style={styles.headerSubtitle}>
-            अपने मूंनगा पौधे की तस्वीर अपलोड करें और प्रगति ट्रैक करें
-          </Paragraph>
+          <Text variant="titleLarge" style={styles.headerTitle}>पौधे का फोटो अपलोड करें</Text>
+          <Text variant="bodyMedium" style={styles.headerSubtitle}>अपने मूंनगा पौधे की तस्वीर अपलोड करें और प्रगति ट्रैक करें</Text>
         </Surface>
 
         {/* Photo Selection */}
         <Surface style={styles.photoContainer}>
-          <Title style={styles.sectionTitle}>फोटो चुनें</Title>
+          <Text style={styles.sectionTitle}>फोटो चुनें</Text>
           
           {selectedImage ? (
             <View style={styles.imagePreview}>
@@ -221,10 +219,10 @@ export default function UploadPhotoScreen({ navigation, route }: UploadPhotoScre
 
         {/* Plant Stage Selection */}
         <Surface style={styles.stageContainer}>
-          <Title style={styles.sectionTitle}>पौधे की अवस्था</Title>
-          <Paragraph style={styles.sectionDesc}>
+          <Text style={styles.sectionTitle}>पौधे की अवस्था</Text>
+          <text style={styles.sectionDesc}>
             अपने पौधे की वर्तमान अवस्था चुनें
-          </Paragraph>
+          </text>
           
           <View style={styles.stageGrid}>
             {plantStages.map((stage) => (
@@ -249,10 +247,10 @@ export default function UploadPhotoScreen({ navigation, route }: UploadPhotoScre
 
         {/* Description */}
         <Surface style={styles.descriptionContainer}>
-          <Title style={styles.sectionTitle}>विवरण (वैकल्पिक)</Title>
-          <Paragraph style={styles.sectionDesc}>
+          <Text style={styles.sectionTitle}>विवरण (वैकल्पिक)</Text>
+          <text style={styles.sectionDesc}>
             अपने पौधे के बारे में कुछ जानकारी साझा करें
-          </Paragraph>
+          </text>
           
           <TextInput
             label="पौधे के बारे में लिखें..."
@@ -284,14 +282,14 @@ export default function UploadPhotoScreen({ navigation, route }: UploadPhotoScre
             {loading ? 'अपलोड हो रहा है...' : 'फोटो अपलोड करें'}
           </Button>
           
-          <Paragraph style={styles.uploadNote}>
+          <text style={styles.uploadNote}>
             फोटो अपलोड करने के बाद आपकी प्रगति अपडेट हो जाएगी
-          </Paragraph>
+          </text>
         </Surface>
 
         {/* Tips */}
         <Surface style={styles.tipsContainer}>
-          <Title style={styles.sectionTitle}>फोटो लेने के टिप्स</Title>
+          <Text style={styles.sectionTitle}>फोटो लेने के टिप्स</Text>
           <View style={styles.tipsList}>
             <View style={styles.tipItem}>
               <Text style={styles.tipEmoji}>📸</Text>

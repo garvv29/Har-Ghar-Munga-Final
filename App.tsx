@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, ScrollView, KeyboardAvoidingView, Platform, Dimensions, Alert } from 'react-native';
-import { Provider as PaperProvider, Card, Title, Paragraph, Button, Surface, TextInput, Text, HelperText } from 'react-native-paper';
+import { Provider as PaperProvider, Card , Button, Surface, TextInput, Text, HelperText } from 'react-native-paper';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { apiService, LoginResponse } from './src/utils/api';
 
+import LoadingScreen from './src/screens/LoadingScreen';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import AnganwadiDashboard from './src/screens/AnganwadiDashboard';
@@ -15,6 +16,7 @@ import SearchFamiliesScreen from './src/screens/SearchFamiliesScreen';
 import PlantOptionsScreen from './src/screens/PlantOptionsScreen';
 import ProgressReportScreen from './src/screens/ProgressReportScreen';
 import FamilyProgressScreen from './src/screens/FamilyProgressScreen';
+
 
 const { width } = Dimensions.get('window');
 const Stack = createStackNavigator();
@@ -173,17 +175,17 @@ function LoginScreen({ navigation }: { navigation: any }) {
               </View>
             </View>
             <View style={styles.titleContainer}>
-              <Title style={styles.headerTitle}>हर घर मुंगा</Title>
+              <text style={styles.headerTitle}>हर घर मुंगा</text>
             </View>
           </Surface>
 
           {/* Login Card */}
           <Card style={styles.loginCard}>
             <Card.Content>
-              <Title style={styles.loginTitle}>लॉगिन करें</Title>
-              <Paragraph style={styles.loginSubtitle}>
+              <text style={styles.loginTitle}>लॉगिन करें</text>
+              <text style={styles.loginSubtitle}>
                 हर घर मुंगा अभियान में आपका स्वागत है
-              </Paragraph>
+              </text>
 
               <TextInput
                 label="उपयोगकर्ता नाम"
@@ -240,15 +242,17 @@ export default function App() {
     <PaperProvider>
       <NavigationContainer>
         <Stack.Navigator 
-          initialRouteName="Login"
+          initialRouteName="Loading"
           screenOptions={{
             headerShown: false,
           }}
         >
+          
+          <Stack.Screen name="Loading" component={LoadingScreen} />
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="AnganwadiDashboard" component={AnganwadiDashboard} />
           <Stack.Screen name="FamilyDashboard" component={FamilyDashboard} />
-          <Stack.Screen name="UploadPhoto" component={UploadPhotoScreen} />
+          <Stack.Screen name="UploadPhoto" component={UploadPhotoScreen as any} />
           <Stack.Screen name="AddFamily" component={AddFamilyScreen} />
           <Stack.Screen name="SearchFamilies" component={SearchFamiliesScreen} />
           <Stack.Screen name="PlantOptions" component={PlantOptionsScreen} />
