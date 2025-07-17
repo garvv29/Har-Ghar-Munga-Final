@@ -220,9 +220,9 @@ export default function UploadPhotoScreen({ navigation, route }: UploadPhotoScre
         {/* Plant Stage Selection */}
         <Surface style={styles.stageContainer}>
           <Text style={styles.sectionTitle}>पौधे की अवस्था</Text>
-          <text style={styles.sectionDesc}>
+          <Text style={styles.sectionDesc}>
             अपने पौधे की वर्तमान अवस्था चुनें
-          </text>
+          </Text>
           
           <View style={styles.stageGrid}>
             {plantStages.map((stage) => (
@@ -248,9 +248,9 @@ export default function UploadPhotoScreen({ navigation, route }: UploadPhotoScre
         {/* Description */}
         <Surface style={styles.descriptionContainer}>
           <Text style={styles.sectionTitle}>विवरण (वैकल्पिक)</Text>
-          <text style={styles.sectionDesc}>
+          <Text style={styles.sectionDesc}>
             अपने पौधे के बारे में कुछ जानकारी साझा करें
-          </text>
+          </Text>
           
           <TextInput
             label="पौधे के बारे में लिखें..."
@@ -282,9 +282,9 @@ export default function UploadPhotoScreen({ navigation, route }: UploadPhotoScre
             {loading ? 'अपलोड हो रहा है...' : 'फोटो अपलोड करें'}
           </Button>
           
-          <text style={styles.uploadNote}>
+          <Text style={styles.uploadNote}>
             फोटो अपलोड करने के बाद आपकी प्रगति अपडेट हो जाएगी
-          </text>
+          </Text>
         </Surface>
 
         {/* Tips */}
