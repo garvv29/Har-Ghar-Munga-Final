@@ -186,16 +186,24 @@ class ApiService {
   }
 
   // Test connection
-  async testConnection(): Promise<{ success: boolean; message: string }> {
-    try {
-      const response = await fetch(this.baseURL);
-      console.log('Test connection response:', response.status);
-      return { success: response.ok, message: `Server responded with status: ${response.status}` };
-    } catch (error) {
-      console.error('Test connection failed:', error);
-      return { success: false, message: `Connection failed: ${error}` };
-    }
+// In api.ts
+// ✅ Clean version of testConnection (inside ApiService class)
+async testConnection(): Promise<{ success: boolean; message: string }> {
+  try {
+    const response = await fetch(`${this.baseURL}/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ username: '', password: '' }), // dummy payload
+    });
+    return { success: response.status !== 404, message: `Status: ${response.status}` };
+  } catch (error) {
+    return { success: false, message: `Connection failed: ${error}` };
   }
+}
+
+
 
   // Authentication APIs
   async login(username: string, password: string): Promise<LoginResponse> {
