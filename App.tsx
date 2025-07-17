@@ -5,7 +5,6 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { apiService, LoginResponse } from './src/utils/api';
 
-import LoadingScreen from './src/screens/LoadingScreen';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import AnganwadiDashboard from './src/screens/AnganwadiDashboard';
@@ -16,6 +15,7 @@ import SearchFamiliesScreen from './src/screens/SearchFamiliesScreen';
 import PlantOptionsScreen from './src/screens/PlantOptionsScreen';
 import ProgressReportScreen from './src/screens/ProgressReportScreen';
 import FamilyProgressScreen from './src/screens/FamilyProgressScreen';
+import LoadingScreen from './src/screens/LoadingScreen';
 
 
 const { width } = Dimensions.get('window');
