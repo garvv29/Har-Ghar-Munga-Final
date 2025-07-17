@@ -55,14 +55,26 @@ const styles = StyleSheet.create({
     paddingVertical: 40,
   },
   centerContent: {
-    alignItems: 'center',
+    flex: 1,                        // 🔧 Make it take full available space
+    justifyContent: 'center',      // 🔧 Center vertically
+    alignItems: 'center',          // Already centers horizontally
   },
   image: {
     width: 150,
     height: 150,
-    borderRadius: 75,
+    borderRadius: 75,              // ✅ Must be HALF of width/height (not 150!)
     marginBottom: 10,
+    borderWidth: 2,
+    borderColor: '#fff',           // Optional: white border around the logo
   },
+  logoWrapper: {
+  shadowColor: '#0f0',
+  shadowOffset: { width: 0, height: 4 },
+  shadowOpacity: 0.3,
+  shadowRadius: 6,
+  elevation: 10,            // For Android
+  borderRadius: 150,         // Match image's borderRadius
+},
   title: {
     fontSize: 24,
     color: '#ffffff',
@@ -84,3 +96,4 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
   },
 });
+
