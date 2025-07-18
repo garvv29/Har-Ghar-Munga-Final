@@ -26,25 +26,34 @@ export default function LoadingScreen({ navigation }: { navigation: any }) {
   }, []);
 
   return (
-    <View style={styles.container}>
-      {/* Main Image */}
-      <View style={styles.centerContent}>
+
+  <View style={styles.container}>
+    {/* Main Content */}
+    <View style={styles.centerContent}>
+      <Image
+        source={require('../assets/logo.jpg')}
+        style={styles.image}
+        resizeMode="contain"
+      />
+      <Text style={styles.title}>हर घर मुंगा</Text>
+      <ActivityIndicator size="large" color="#ffffff" style={{ marginTop: 20 }} />
+    </View>
+
+    {/* Powered by Section */}
+    <View style={styles.footer}>
+      <Text style={styles.poweredText}>Powered by</Text>
+      <View style={styles.poweredByRow}>
         <Image
-          source={require('../assets/logo.jpg')}
-          style={styles.image}
+          source={require('../../assets/ssipmt.jpg')} 
+          style={styles.ssipmtLogo}
           resizeMode="contain"
         />
-        <Text style={styles.title}>हर घर मुंगा</Text>
-        <ActivityIndicator size="large" color="#ffffff" style={{ marginTop: 20 }} />
-      </View>
-
-      {/* Powered by */}
-      <View style={styles.footer}>
-        <Text style={styles.poweredText}>Powered by</Text>
         <Text style={styles.instituteText}>SSIPMT</Text>
       </View>
     </View>
-  );
+  </View>
+);
+
 }
 const styles = StyleSheet.create({
   container: {
@@ -55,25 +64,25 @@ const styles = StyleSheet.create({
     paddingVertical: 40,
   },
   centerContent: {
-    flex: 1,                        // 🔧 Make it take full available space
-    justifyContent: 'center',      // 🔧 Center vertically
-    alignItems: 'center',          // Already centers horizontally
+    flex: 1,                        
+    justifyContent: 'center',      
+    alignItems: 'center',         
   },
   image: {
     width: 150,
     height: 150,
-    borderRadius: 75,              // ✅ Must be HALF of width/height (not 150!)
+    borderRadius: 75,            
     marginBottom: 10,
     borderWidth: 2,
-    borderColor: '#fff',           // Optional: white border around the logo
+    borderColor: '#fff',           
   },
   logoWrapper: {
   shadowColor: '#0f0',
   shadowOffset: { width: 0, height: 4 },
   shadowOpacity: 0.3,
   shadowRadius: 6,
-  elevation: 10,            // For Android
-  borderRadius: 150,         // Match image's borderRadius
+  elevation: 10,            
+  borderRadius: 150,         
 },
   title: {
     fontSize: 24,
@@ -95,5 +104,23 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     letterSpacing: 1.5,
   },
+  instituteRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  marginTop: 4,
+},
+poweredByRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  marginTop: 2,
+},
+
+ssipmtLogo: {
+  width: 18,
+  height: 18,
+  marginRight: 6,
+}
+
 });
 
