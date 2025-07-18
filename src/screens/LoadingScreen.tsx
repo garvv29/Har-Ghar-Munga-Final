@@ -117,8 +117,8 @@ poweredByRow: {
 },
 
 ssipmtLogo: {
-  width: 18,
-  height: 18,
+  width: 25,
+  height: 25,
   marginRight: 6,
 }
 
