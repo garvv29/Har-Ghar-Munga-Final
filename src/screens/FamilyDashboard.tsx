@@ -405,69 +405,6 @@ export default function FamilyDashboard({ navigation, route }: FamilyDashboardPr
           </Surface>
         )}
 
-        {/* Nutrition Guide */}
-        <Surface style={styles.guideContainer}>
-          <View style={styles.guideHeaderRow}>
-            <Title style={styles.sectionTitle}>पोषण गाइड</Title>
-            <Button 
-              mode="outlined" 
-              icon="arrow-right"
-              style={styles.guideButton}
-              textColor="#4CAF50"
-              onPress={() => navigation.navigate('NutritionGuide')}
-            >
-              देखें
-            </Button>
-          </View>
-          
-          <View style={styles.guidePreview}>
-            <View style={styles.guidePreviewItem}>
-              <Text style={styles.guidePreviewEmoji}>🌱</Text>
-              <Text style={styles.guidePreviewText}>देखभाल टिप्स</Text>
-            </View>
-            <View style={styles.guidePreviewItem}>
-              <Text style={styles.guidePreviewEmoji}>🥗</Text>
-              <Text style={styles.guidePreviewText}>पोषण लाभ</Text>
-            </View>
-            <View style={styles.guidePreviewItem}>
-              <Text style={styles.guidePreviewEmoji}>💡</Text>
-              <Text style={styles.guidePreviewText}>विशेषज्ञ सलाह</Text>
-            </View>
-          </View>
-        </Surface>
-
-        {/* Achievement Progress */}
-        <Surface style={styles.achievementContainer}>
-          <Title style={styles.sectionTitle}>उपलब्धियां</Title>
-          <View style={styles.achievementList}>
-            <View style={[styles.achievementItem, totalImagesYet >= 1 && styles.achievementCompleted]}>
-              <Text style={styles.achievementEmoji}>🌱</Text>
-              <View style={styles.achievementContent}>
-                <Text style={styles.achievementTitle}>पहली फोटो</Text>
-                <Text style={styles.achievementDesc}>पहली फोटो अपलोड करें</Text>
-              </View>
-              <Text style={styles.achievementStatus}>{totalImagesYet >= 1 ? '✅' : '⏳'}</Text>
-            </View>
-            
-            <View style={[styles.achievementItem, totalImagesYet >= 4 && styles.achievementCompleted]}>
-              <Text style={styles.achievementEmoji}>📈</Text>
-              <View style={styles.achievementContent}>
-                <Text style={styles.achievementTitle}>नियमित अपडेट</Text>
-                <Text style={styles.achievementDesc}>4 फोटो अपलोड करें</Text>
-              </View>
-              <Text style={styles.achievementStatus}>{totalImagesYet >= 4 ? '✅' : '⏳'}</Text>
-            </View>
-            
-            <View style={[styles.achievementItem, totalImagesYet >= 8 && styles.achievementCompleted]}>
-              <Text style={styles.achievementEmoji}>🏆</Text>
-              <View style={styles.achievementContent}>
-                <Text style={styles.achievementTitle}>मास्टर गार्डनर</Text>
-                <Text style={styles.achievementDesc}>सभी 8 फोटो अपलोड करें</Text>
-              </View>
-              <Text style={styles.achievementStatus}>{totalImagesYet >= 8 ? '✅' : '⏳'}</Text>
-            </View>
-          </View>
-        </Surface>
 
 
 

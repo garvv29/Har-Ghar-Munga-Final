@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, ScrollView, Dimensions, TouchableOpacity, Alert } from 'react-native';
+import { StyleSheet, View, ScrollView, Dimensions, TouchableOpacity, Alert, Image } from 'react-native';
 import { Card, Title, Paragraph, Button, Surface, Text, FAB, Chip, ActivityIndicator } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -25,6 +25,8 @@ export default function AnganwadiDashboard({ navigation }: AnganwadiDashboardPro
   });
   const [latestStudentName, setLatestStudentName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [families, setFamilies] = useState<any[]>([]);
+
   const [notifications, setNotifications] = useState<Array<{
     id: string;
     message: string;
@@ -105,46 +107,71 @@ export default function AnganwadiDashboard({ navigation }: AnganwadiDashboardPro
     }
   };
 
-  // Fetch latest student data from backend using existing endpoints
+  // Fetch latest student data from backend using correct endpoints
   const fetchLatestStudentData = async () => {
     try {
       setLoading(true);
       
-      // Use the existing /search endpoint to get all students
-      const response = await fetch(`${API_BASE_URL}/search`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch students data');
+      // Get user info to get center code for filtering
+      const userInfo = await AsyncStorage.getItem('userInfo');
+      let centerCode = null;
+      if (userInfo) {
+        const user = JSON.parse(userInfo);
+        centerCode = user.aanganwaadi_id;
       }
       
-      const students = await response.json();
+      // Use the search endpoint to get all families (this is the working endpoint)
+      let url = `${API_BASE_URL}/search`;
+      if (centerCode) {
+        url += `?centerCode=${encodeURIComponent(centerCode)}`;
+      }
       
-      if (students && students.length > 0) {
-        // Calculate stats
-        const totalStudents = students.length;
-        const totalImagesUploaded = students.filter((student: any) => student.plantDistributed).length;
+      console.log('Fetching families from:', url);
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      console.log('Response status:', response.status);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch families data: ${response.status}`);
+      }
+      
+      const families = await response.json();
+      console.log('Fetched families:', families);
+      setFamilies(families);
+      
+      if (families && families.length > 0) {
+        // Calculate stats based on actual data structure
+        const totalFamilies = families.length;
+        const distributedPlants = families.filter((family: any) => family.plantDistributed === true).length;
+        const activeFamilies = totalFamilies; // Assume all families are active if no status field
         
         setStats({
-          totalPlants: totalStudents,
-          distributedPlants: totalImagesUploaded,
-          activeFamilies: totalStudents,
+          totalPlants: totalFamilies,
+          distributedPlants: distributedPlants,
+          activeFamilies: activeFamilies,
         });
 
-        // Get the latest student (assuming students are ordered by registration date)
-        // Since we don't have registration date in the response, we'll use the last one in the array
-        const latestStudent = students[students.length - 1];
+        // Get the latest family (using the first one for now since we don't have registration date)
+        const latestFamily = families[0];
         
-        if (latestStudent && latestStudent.childName) {
-          const savedLatestStudent = await AsyncStorage.getItem('latest_student_name');
-          if (savedLatestStudent !== latestStudent.childName) {
-            // New student registered
-            setLatestStudentName(latestStudent.childName);
-            await AsyncStorage.setItem('latest_student_name', latestStudent.childName);
+        if (latestFamily && latestFamily.childName) {
+          const savedLatestFamily = await AsyncStorage.getItem('latest_family_name');
+          if (savedLatestFamily !== latestFamily.childName) {
+            // New family registered
+            setLatestStudentName(latestFamily.childName);
+            await AsyncStorage.setItem('latest_family_name', latestFamily.childName);
             await addNotification(
-              `${latestStudent.childName} नया परिवार पंजीकृत हुआ`,
+              `${latestFamily.childName} नया परिवार पंजीकृत हुआ`,
               'new_student'
             );
           } else {
-            setLatestStudentName(latestStudent.childName);
+            setLatestStudentName(latestFamily.childName);
           }
         }
       } else {
@@ -155,8 +182,8 @@ export default function AnganwadiDashboard({ navigation }: AnganwadiDashboardPro
         });
       }
     } catch (error) {
-      console.error('Error fetching latest student data:', error);
-      Alert.alert('त्रुटि', 'डेटा लोड करने में समस्या हुई।');
+      console.error('Error fetching latest family data:', error);
+      Alert.alert('त्रुटि', 'डेटा लोड करने में समस्या हुई। कृपया इंटरनेट कनेक्शन जांचें।');
     } finally {
       setLoading(false);
     }
@@ -177,11 +204,59 @@ export default function AnganwadiDashboard({ navigation }: AnganwadiDashboardPro
     return new Date(timestamp).toLocaleDateString('hi-IN');
   };
 
+  // Fetch dashboard statistics from backend
+  const fetchDashboardStats = async () => {
+    try {
+      // Get user info to get center code for filtering
+      const userInfo = await AsyncStorage.getItem('userInfo');
+      let centerCode = null;
+      if (userInfo) {
+        const user = JSON.parse(userInfo);
+        centerCode = user.aanganwaadi_id;
+      }
+      
+      // Try to fetch dashboard stats from backend (using search endpoint as fallback)
+      let url = `${API_BASE_URL}/search`;
+      if (centerCode) {
+        url += `?centerCode=${encodeURIComponent(centerCode)}`;
+      }
+      
+      console.log('Fetching dashboard stats from:', url);
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (response.ok) {
+        const statsData = await response.json();
+        console.log('Dashboard stats:', statsData);
+        
+        if (statsData) {
+          setStats({
+            totalPlants: statsData.totalFamilies || 0,
+            distributedPlants: statsData.distributedPlants || 0,
+            activeFamilies: statsData.activeFamilies || 0,
+          });
+        }
+      } else {
+        console.log('Dashboard stats endpoint not available, using family data instead');
+        // If dashboard stats endpoint is not available, fetchLatestStudentData will handle it
+      }
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error);
+      // Continue with family data fetching
+    }
+  };
+
   // Load data on component mount
   useEffect(() => {
     loadNotifications();
     fetchCenterInfo();
-    fetchLatestStudentData();
+    fetchDashboardStats(); // Try dashboard stats first
+    fetchLatestStudentData(); // Fallback to family data
   }, []);
 
   const handleAddFamily = () => {
@@ -195,6 +270,8 @@ export default function AnganwadiDashboard({ navigation }: AnganwadiDashboardPro
   const handleViewProgress = () => {
     navigation.navigate('ProgressReport');
   };
+
+
 
   const handlePlantOptions = () => {
     navigation.navigate('PlantOptions');
@@ -306,6 +383,36 @@ export default function AnganwadiDashboard({ navigation }: AnganwadiDashboardPro
               मूंगा पौधों की देखभाल के लिए उन्हें सही मार्गदर्शन दें।
             </Text>
           </View>
+        </Surface>
+
+        {/* Recent Photos Section */}
+        <Surface style={styles.photosContainer}>
+          <Title style={styles.sectionTitle}>हाल की तस्वीरें</Title>
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color="#4CAF50" />
+              <Text style={styles.loadingText}>लोड हो रहा है...</Text>
+            </View>
+          ) : families && families.length > 0 ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photosScroll}>
+              {families.slice(0, 5).map((family: any) => (
+                family.plant_photo && (
+                  <View key={family.id} style={styles.photoCard}>
+                    <Image 
+                      source={{ uri: `${API_BASE_URL}/uploads/${family.plant_photo}` }} 
+                      style={styles.familyPhoto}
+                      resizeMode="cover"
+                    />
+                    <Text style={styles.photoLabel}>{family.childName}</Text>
+                  </View>
+                )
+              ))}
+            </ScrollView>
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>कोई तस्वीर नहीं मिली</Text>
+            </View>
+          )}
         </Surface>
 
         {/* Recent Activities */}
@@ -669,11 +776,41 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666666',
   },
+
   fab: {
     position: 'absolute',
     margin: 16,
     right: 0,
     bottom: 0,
     backgroundColor: '#4CAF50',
+  },
+  photosContainer: {
+    padding: 20,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    elevation: 6,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+  },
+  photosScroll: {
+    flexGrow: 0,
+  },
+  photoCard: {
+    marginRight: 12,
+    alignItems: 'center',
+  },
+  familyPhoto: {
+    width: 80,
+    height: 80,
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  photoLabel: {
+    fontSize: 12,
+    color: '#666666',
+    textAlign: 'center',
   },
 });

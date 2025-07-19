@@ -53,9 +53,9 @@ export default function ProgressReportScreen({ navigation }: ProgressReportScree
         </Surface>
 
         {/* Stats Grid */}
-        {loading ? (
+          {loading ? (
           <Surface style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#4CAF50" />
+              <ActivityIndicator size="large" color="#4CAF50" />
             <Text style={styles.loadingText}>डेटा लोड हो रहा है...</Text>
           </Surface>
         ) : (
@@ -82,7 +82,7 @@ export default function ProgressReportScreen({ navigation }: ProgressReportScree
                   <Text style={styles.cardEmoji}>🌱</Text>
                 </View>
                 <Text style={styles.cardTitle}>वितरित पौधे</Text>
-              </View>
+            </View>
               <Text style={styles.cardNumber}>{totalFamilies !== null ? totalFamilies : '0'}</Text>
               <Text style={styles.cardDescription}>मूंगा पौधे वितरित किए गए</Text>
               <View style={styles.progressBar}>
@@ -105,7 +105,7 @@ export default function ProgressReportScreen({ navigation }: ProgressReportScree
               </View>
             </Surface>
           </View>
-        )}
+          )}
 
         {/* Success Rate Card */}
         {!loading && (
@@ -117,7 +117,7 @@ export default function ProgressReportScreen({ navigation }: ProgressReportScree
             <Text style={styles.successDescription}>
               परिवारों ने अपनी प्रगति फोटो अपलोड की है
             </Text>
-          </Surface>
+        </Surface>
         )}
       </ScrollView>
     </View>

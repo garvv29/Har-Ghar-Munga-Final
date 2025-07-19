@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, View, ScrollView, Alert, ActivityIndicator } from 'react-native';
-import { Card, Title, Button, Surface, Text, TextInput, Appbar, Chip, Avatar, IconButton } from 'react-native-paper';
+import { StyleSheet, View, ScrollView, Alert, ActivityIndicator, Linking, Modal, Clipboard } from 'react-native';
+import { Card, Title, Button, Surface, Text, TextInput, Appbar, Chip, Avatar, IconButton, Portal, Dialog } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Keyboard } from 'react-native'; 
 import {  } from '../utils/api';
@@ -51,6 +51,8 @@ export default function SearchFamiliesScreen({ navigation }: SearchFamiliesScree
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredFamilies, setFilteredFamilies] = useState<FamilyData[]>([]);
   const [loading, setLoading] = useState(false);
+  const [selectedFamily, setSelectedFamily] = useState<FamilyData | null>(null);
+  const [detailsVisible, setDetailsVisible] = useState(false);
 
   const fetchFamilies = useCallback(async (query: string, signal: AbortSignal) => {
     setLoading(true);
@@ -99,15 +101,18 @@ export default function SearchFamiliesScreen({ navigation }: SearchFamiliesScree
     // For now, it just ensures the latest state is captured if the user hits enter.
   };
 
-  const handleViewDetails = (familyId: string) => {
-    navigation.navigate('FamilyDetails', { userId: familyId });
+  const handleViewDetails = (family: FamilyData) => {
+    setSelectedFamily(family);
+    setDetailsVisible(true);
   };
 
-  const handleCallFamily = (mobileNumber: string) => {
-    Alert.alert('कॉल करें', `${mobileNumber} पर कॉल करना चाहते हैं?`, [
-      { text: 'नहीं', style: 'cancel' },
-      { text: 'हाँ', onPress: () => { console.log(`Calling ${mobileNumber}`); } }
-    ]);
+  const handleCallFamily = async (mobileNumber: string) => {
+    try {
+      await Clipboard.setString(mobileNumber);
+      Alert.alert('सफलता!', `${mobileNumber} नंबर कॉपी हो गया है। अब आप कॉल कर सकते हैं।`);
+    } catch (error) {
+      Alert.alert('त्रुटि', 'नंबर कॉपी नहीं हो पाया');
+    }
   };
 
   return (
@@ -199,7 +204,7 @@ export default function SearchFamiliesScreen({ navigation }: SearchFamiliesScree
                       <IconButton
                         icon="eye"
                         size={20}
-                        onPress={() => handleViewDetails(family.id)}
+                        onPress={() => handleViewDetails(family)}
                         style={styles.actionIcon}
                         iconColor="#2196F3"
                       />
@@ -243,6 +248,56 @@ export default function SearchFamiliesScreen({ navigation }: SearchFamiliesScree
           )}
         </Surface>
       </ScrollView>
+
+      {/* Family Details Dialog */}
+      <Portal>
+        <Dialog visible={detailsVisible} onDismiss={() => setDetailsVisible(false)}>
+          <Dialog.Title>परिवार की जानकारी</Dialog.Title>
+          <Dialog.Content>
+            {selectedFamily && (
+              <View style={styles.detailsContent}>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>बच्चे का नाम:</Text>
+                  <Text style={styles.detailValue}>{selectedFamily.childName}</Text>
+                </View>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>माता/पिता:</Text>
+                  <Text style={styles.detailValue}>{selectedFamily.parentName}</Text>
+                </View>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>मोबाइल:</Text>
+                  <Text style={styles.detailValue}>{selectedFamily.mobileNumber}</Text>
+                </View>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>गाँव:</Text>
+                  <Text style={styles.detailValue}>{selectedFamily.village}</Text>
+                </View>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>पौधा वितरण:</Text>
+                  <Chip 
+                    style={selectedFamily.plantDistributed ? styles.plantChip : styles.noPlantChip}
+                    textStyle={selectedFamily.plantDistributed ? styles.plantText : styles.noPlantText}
+                    icon={selectedFamily.plantDistributed ? "check-circle" : "close-circle"}
+                  >
+                    {selectedFamily.plantDistributed ? 'हाँ' : 'नहीं'}
+                  </Chip>
+                </View>
+              </View>
+            )}
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setDetailsVisible(false)}>बंद करें</Button>
+            {selectedFamily && (
+              <Button onPress={() => {
+                setDetailsVisible(false);
+                handleCallFamily(selectedFamily.mobileNumber);
+              }}>
+                नंबर कॉपी करें
+              </Button>
+            )}
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
     </View>
   );
 }
@@ -421,5 +476,36 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 16,
     color: '#4CAF50',
-  }
+  },
+  detailsContent: {
+    gap: 12,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  detailLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666666',
+    flex: 1,
+  },
+  detailValue: {
+    fontSize: 14,
+    color: '#1a1a1a',
+    fontWeight: '500',
+    flex: 2,
+    textAlign: 'right',
+  },
+  noPlantChip: {
+    height: 28,
+    backgroundColor: '#FFEBEE',
+  },
+  noPlantText: {
+    fontSize: 11,
+    color: '#D32F2F',
+    fontWeight: '600',
+  },
 });

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { StyleSheet, View, ScrollView, KeyboardAvoidingView, Platform, Alert, Image } from 'react-native';
 import { Provider as PaperProvider, Card, Button, Surface, TextInput, Text } from 'react-native-paper';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -162,9 +162,11 @@ function LoginScreen({ navigation }: { navigation: any }) {
         {/* Header */}
         <Surface style={styles.header}>
           <View style={styles.logoContainer}>
-            <View style={styles.logoCircle}>
-              <Text style={styles.logoText}>HGM</Text>
-            </View>
+            <Image 
+              source={require('./src/assets/logo.jpg')} 
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
           </View>
           <View style={styles.titleContainer}>
             <Text style={styles.headerTitle}>हर घर मुंगा</Text>
@@ -287,6 +289,16 @@ const styles = StyleSheet.create({
   logoContainer: {
     alignItems: 'center',
     marginBottom: 20,
+  },
+  logoImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
   titleContainer: {
     alignItems: 'center',

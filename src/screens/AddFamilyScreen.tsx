@@ -99,8 +99,24 @@ export default function AddFamilyScreen({ navigation }: AddFamilyScreenProps) {
   };
 
   const showImageOptions = (photoType: 'plantPhoto' | 'pledgePhoto', title: string) => {
-    // Directly open camera instead of showing options
-    pickImage(photoType);
+    Alert.alert(
+      'फोटो चुनें',
+      'फोटो कैसे लेना चाहते हैं?',
+      [
+        {
+          text: '📷 कैमरा',
+          onPress: () => pickImage(photoType),
+        },
+        {
+          text: '🖼️ गैलरी',
+          onPress: () => pickFromGallery(photoType),
+        },
+        {
+          text: 'रद्द करें',
+          style: 'cancel',
+        },
+      ]
+    );
   };
 
   const formatDateToYYYYMMDD = (dateString: string) => {
@@ -368,14 +384,27 @@ export default function AddFamilyScreen({ navigation }: AddFamilyScreenProps) {
         </View>
       </View>
 
-      <View style={[styles.submitContainer, { backgroundColor: isFormValid() ? '#2E7D32' : '#E0E0E0' }]}>
-        <Button
-          title={loading ? '⏳ पंजीकरण हो रहा है...' : '✅ पंजीकरण करें'}
+      <View style={styles.submitContainer}>
+        <TouchableOpacity
+          style={[
+            styles.submitButton,
+            { 
+              backgroundColor: isFormValid() ? '#4CAF50' : '#E8F5E8',
+              opacity: loading ? 0.8 : 1
+            }
+          ]}
           onPress={confirmRegistration}
           disabled={loading || !isFormValid()}
-          color={isFormValid() ? '#ffffff' : '#cccccc'}
-        />
+        >
+          <Text style={[
+            styles.submitButtonText,
+            { color: isFormValid() ? '#FFFFFF' : '#4CAF50' }
+          ]}>
+            {loading ? 'पंजीकरण हो रहा है...' : 'पंजीकरण करें'}
+          </Text>
+        </TouchableOpacity>
       </View>
+
     </ScrollView>
   );
 }
@@ -494,7 +523,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   submitContainer: {
-    backgroundColor: '#2E7D32',
     margin: 10,
     padding: 20,
     borderRadius: 15,
@@ -503,5 +531,18 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.3,
     shadowRadius: 4.65,
+  },
+  submitButton: {
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  submitButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    textAlign: 'center',
+    letterSpacing: 0.3,
   },
 });
