@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, ScrollView, KeyboardAvoidingView, Platform, Dimensions, Alert } from 'react-native';
-import { Provider as PaperProvider, Card , Button, Surface, TextInput, Text, HelperText } from 'react-native-paper';
+import { StyleSheet, View, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { Provider as PaperProvider, Card, Button, Surface, TextInput, Text } from 'react-native-paper';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
-import { apiService, LoginResponse } from './src/utils/api';
+import { apiService } from './src/utils/api';
 
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -17,8 +17,6 @@ import ProgressReportScreen from './src/screens/ProgressReportScreen';
 import FamilyProgressScreen from './src/screens/FamilyProgressScreen';
 import LoadingScreen from './src/screens/LoadingScreen';
 
-
-const { width } = Dimensions.get('window');
 const Stack = createStackNavigator();
 
 function LoginScreen({ navigation }: { navigation: any }) {
@@ -42,8 +40,8 @@ function LoginScreen({ navigation }: { navigation: any }) {
       console.log('Connection test result:', connectionTest);
 
       if (!connectionTest.success) {
-        Alert.alert('कनेक्शन त्रुटि', `सर्वर से कनेक्ट नहीं हो पा रहा है: ${connectionTest.message}`);
-        return;
+        console.warn('Server connection failed, but proceeding with login attempt');
+        // Don't block login, just warn and continue
       }
       
       console.log('Connection successful, attempting login...');
@@ -64,11 +62,11 @@ function LoginScreen({ navigation }: { navigation: any }) {
         
         switch (userRole) {
           case 'admin':
-          Alert.alert('Admin dashboard is disabled.');
-          break;
-          case 'anganwadi':
-          navigation.navigate('AnganwadiDashboard');
-          break;
+            Alert.alert('Admin dashboard is disabled.');
+            break;
+          case 'aanganwadi':
+            navigation.navigate('AnganwadiDashboard');
+            break;
           case 'family':
             const userName = user.name || '';
             const userUsername = user.username || '';
@@ -90,8 +88,8 @@ function LoginScreen({ navigation }: { navigation: any }) {
               motherName,
               aanganwadi_code,
             });
-          break;
-        default:
+            break;
+          default:
             // If no specific role, try to determine from username or other fields
             if (response.user?.username?.toUpperCase().includes('ADMIN') || 
                 response.user?.username?.toUpperCase().includes('CGCO')) {
@@ -122,23 +120,17 @@ function LoginScreen({ navigation }: { navigation: any }) {
             } else {
               Alert.alert('त्रुटि', 'अज्ञात उपयोगकर्ता भूमिका।');
             }
-          break;
-      }
+            break;
+        }
       } else {
         Alert.alert('लॉगिन विफल', response.message || 'लॉगिन में त्रुटि हुई।');
       }
     } catch (error) {
       console.error('Login error:', error);
-      Alert.alert('नेटवर्क त्रुटि', `सर्वर से कनेक्ट नहीं हो पा रहा है: ${error}`);
+      Alert.alert('नेटवर्क त्रुटि', 'सर्वर से कनेक्ट नहीं हो पा रहा है। कृपया इंटरनेट कनेक्शन जांचें और पुनः प्रयास करें।');
     } finally {
       setLoading(false);
     }
-  };
-
-
-
-  const handleSignUp = () => {
-    // Add sign up navigation logic
   };
 
   // Ensure app content is visible during screen recording
@@ -158,82 +150,82 @@ function LoginScreen({ navigation }: { navigation: any }) {
       style={styles.container} 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-        <StatusBar style="light" />
-        
-        {/* Background Gradient */}
-        <LinearGradient
-          colors={['#2E7D32', '#4CAF50', '#66BB6A']}
-          style={styles.backgroundGradient}
-        />
-        
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {/* Header */}
-          <Surface style={styles.header}>
-            <View style={styles.logoContainer}>
-              <View style={styles.logoCircle}>
-                <Text style={styles.logoText}>HGM</Text>
-              </View>
+      <StatusBar style="light" />
+      
+      {/* Background Gradient */}
+      <LinearGradient
+        colors={['#2E7D32', '#4CAF50', '#66BB6A']}
+        style={styles.backgroundGradient}
+      />
+      
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* Header */}
+        <Surface style={styles.header}>
+          <View style={styles.logoContainer}>
+            <View style={styles.logoCircle}>
+              <Text style={styles.logoText}>HGM</Text>
             </View>
-            <View style={styles.titleContainer}>
-              <text style={styles.headerTitle}>हर घर मुंगा</text>
-            </View>
-          </Surface>
-
-          {/* Login Card */}
-          <Card style={styles.loginCard}>
-            <Card.Content>
-              <text style={styles.loginTitle}>लॉगिन करें</text>
-              <text style={styles.loginSubtitle}>
-                हर घर मुंगा अभियान में आपका स्वागत है
-              </text>
-
-              <TextInput
-                label="उपयोगकर्ता नाम"
-                value={email}
-                onChangeText={setEmail}
-                mode="outlined"
-                style={styles.input}
-                left={<TextInput.Icon icon="account" />}
-                theme={{ colors: { primary: '#2E7D32' } }}
-              />
-
-              <TextInput
-                label="पासवर्ड"
-                value={password}
-                onChangeText={setPassword}
-                mode="outlined"
-                secureTextEntry={!showPassword}
-                style={styles.input}
-                left={<TextInput.Icon icon="lock" />}
-                right={
-                  <TextInput.Icon 
-                    icon={showPassword ? "eye-off" : "eye"} 
-                    onPress={() => setShowPassword(!showPassword)}
-                  />
-                }
-                theme={{ colors: { primary: '#2E7D32' } }}
-              />
-
-              <Button
-                mode="contained"
-                onPress={handleLogin}
-                loading={loading}
-                style={styles.loginButton}
-                buttonColor="#2E7D32"
-                contentStyle={styles.loginButtonContent}
-              >
-                {loading ? 'लॉगिन हो रहा है...' : 'लॉगिन करें'}
-              </Button>
-            </Card.Content>
-          </Card>
-
-          {/* Powered by SSIPMT */}
-          <View style={styles.poweredByContainer}>
-            <Text style={styles.poweredByText}>Powered by</Text>
-            <Text style={styles.ssimptText}>SSIPMT RAIPUR</Text>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+          <View style={styles.titleContainer}>
+            <Text style={styles.headerTitle}>हर घर मुंगा</Text>
+          </View>
+        </Surface>
+
+        {/* Login Card */}
+        <Card style={styles.loginCard}>
+          <Card.Content>
+            <Text style={styles.loginTitle}>लॉगिन करें</Text>
+            <Text style={styles.loginSubtitle}>
+              हर घर मुंगा अभियान में आपका स्वागत है
+            </Text>
+
+            <TextInput
+              label="उपयोगकर्ता नाम"
+              value={email}
+              onChangeText={setEmail}
+              mode="outlined"
+              style={styles.input}
+              left={<TextInput.Icon icon="account" />}
+              theme={{ colors: { primary: '#2E7D32' } }}
+            />
+
+            <TextInput
+              label="पासवर्ड"
+              value={password}
+              onChangeText={setPassword}
+              mode="outlined"
+              secureTextEntry={!showPassword}
+              style={styles.input}
+              left={<TextInput.Icon icon="lock" />}
+              right={
+                <TextInput.Icon 
+                  icon={showPassword ? "eye-off" : "eye"} 
+                  onPress={() => setShowPassword(!showPassword)}
+                />
+              }
+              theme={{ colors: { primary: '#2E7D32' } }}
+            />
+
+            <Button
+              mode="contained"
+              onPress={handleLogin}
+              loading={loading}
+              style={styles.loginButton}
+              buttonColor="#2E7D32"
+              contentStyle={styles.loginButtonContent}
+            >
+              {loading ? 'लॉगिन हो रहा है...' : 'लॉगिन करें'}
+            </Button>
+          </Card.Content>
+        </Card>
+
+        {/* Powered by SSIPMT */}
+        <View style={styles.poweredByContainer}>
+          <Text style={styles.poweredByText}>Powered by</Text>
+          <Text style={styles.ssimptText}>SSIPMT RAIPUR</Text>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -247,7 +239,6 @@ export default function App() {
             headerShown: false,
           }}
         >
-          
           <Stack.Screen name="Loading" component={LoadingScreen} />
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="AnganwadiDashboard" component={AnganwadiDashboard} />
@@ -337,7 +328,6 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     width: '100%',
   },
-
   loginCard: {
     borderRadius: 20,
     elevation: 12,
@@ -346,9 +336,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.15,
     shadowRadius: 12,
-  },
-  cardContent: {
-    padding: 32,
   },
   loginTitle: {
     fontSize: 26,
@@ -369,7 +356,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderRadius: 12,
   },
-
   loginButton: {
     borderRadius: 12,
     marginBottom: 32,
@@ -381,10 +367,6 @@ const styles = StyleSheet.create({
   },
   loginButtonContent: {
     paddingVertical: 12,
-  },
-  loginButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
   },
   poweredByContainer: {
     alignItems: 'center',
@@ -407,30 +389,5 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0, 0, 0, 0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
-  },
-  helpContainer: {
-    backgroundColor: 'rgba(76, 175, 80, 0.1)',
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 24,
-    borderLeftWidth: 4,
-    borderLeftColor: '#4CAF50',
-  },
-  helpTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#2E7D32',
-    marginBottom: 8,
-  },
-  helpText: {
-    fontSize: 12,
-    color: '#4CAF50',
-    marginBottom: 4,
-  },
-  helpPassword: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#2E7D32',
-    marginTop: 8,
   },
 });

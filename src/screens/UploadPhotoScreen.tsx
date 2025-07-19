@@ -69,8 +69,7 @@ export default function UploadPhotoScreen({ navigation, route }: UploadPhotoScre
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true, // Allow user to crop/edit
-      aspect: [4, 3],     // Enforce aspect ratio
+      allowsEditing: false, // Remove crop/edit option
       quality: 0.7,       // Slightly reduced quality for faster uploads, still good visuals
     });
 
@@ -81,8 +80,7 @@ export default function UploadPhotoScreen({ navigation, route }: UploadPhotoScre
 
   const takePhoto = async () => {
     const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true, // Allow user to crop/edit
-      aspect: [4, 3],     // Enforce aspect ratio
+      allowsEditing: false, // Remove crop/edit option
       quality: 0.7,       // Slightly reduced quality for faster uploads
     });
 

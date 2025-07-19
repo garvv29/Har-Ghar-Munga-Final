@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, ScrollView, Dimensions, Image, Alert } from 'react-native';
 import { Card, Title, Paragraph, Button, Surface, Text, FAB, Chip, ProgressBar } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiService, FamilyData } from '../utils/api';
 import { API_BASE_URL } from '../utils/api';
 
@@ -57,24 +58,47 @@ export default function FamilyDashboard({ navigation, route }: FamilyDashboardPr
   const TOTAL_IMAGES_TO_BE_UPLOADED = 8;
   const careScore = Math.round((totalImagesYet / TOTAL_IMAGES_TO_BE_UPLOADED) * 100);
 
+  // Helper functions to save and load latest photo URL
+  const saveLatestPhotoUrl = async (photoUrl: string) => {
+    try {
+      const key = `latestPhoto_${username}`;
+      await AsyncStorage.setItem(key, photoUrl);
+      console.log('Latest photo URL saved locally:', photoUrl);
+    } catch (error) {
+      console.error('Error saving latest photo URL:', error);
+    }
+  };
+
+  const loadLatestPhotoUrl = async () => {
+    try {
+      const key = `latestPhoto_${username}`;
+      const savedPhotoUrl = await AsyncStorage.getItem(key);
+      if (savedPhotoUrl) {
+        console.log('Latest photo URL loaded from local storage:', savedPhotoUrl);
+        setLatestPhotoUri(savedPhotoUrl);
+      }
+    } catch (error) {
+      console.error('Error loading latest photo URL:', error);
+    }
+  };
+
   useEffect(() => {
     console.log("Route params received in FamilyDashboard:", route?.params);
     console.log("Aanganwadi code in dashboard:", route?.params?.aanganwadi_code);
-// NEW: Capture prediction results from route params if they exist
+    
+    // NEW: Capture prediction results from route params if they exist
     if (route?.params?.uploadedPredictionMessage) {
       setAiPredictionStatus(route.params.uploadedPredictionMessage);
       // Safely assign, converting 'undefined' to 'null' for the state variables
       setAiIsMoringa(route.params.uploadedIsMoringa === undefined ? null : route.params.uploadedIsMoringa);
       setAiConfidence(route.params.uploadedConfidence === undefined ? null : route.params.uploadedConfidence);
       // Clear these params after using them to avoid stale data on subsequent visits
-       // Clear these params after using them to avoid stale data on subsequent visits
       navigation.setParams({
         uploadedPredictionMessage: undefined,
         uploadedIsMoringa: undefined,
         uploadedConfidence: undefined
       });
     }
-    
     
     const fetchFamilyData = async () => {
       try {
@@ -88,9 +112,18 @@ export default function FamilyDashboard({ navigation, route }: FamilyDashboardPr
             ...prev,
             photoCount: data.totalImagesYet || 0,
           }));
+          
+          // First try to load from server
           if (data.plant_photo) {
-             setLatestPhotoUri(`${API_BASE_URL}/uploads/${data.plant_photo}`);
+            const serverPhotoUrl = `${API_BASE_URL}/uploads/${data.plant_photo}`;
+            setLatestPhotoUri(serverPhotoUrl);
+            // Save to local storage for persistence
+            await saveLatestPhotoUrl(serverPhotoUrl);
+          } else {
+            // If no server photo, try to load from local storage
+            await loadLatestPhotoUrl();
           }
+          
           console.log('Family data fetched:', data);
         } else {
           console.warn('FamilyDashboard received without userId in route.params.');
@@ -99,6 +132,8 @@ export default function FamilyDashboard({ navigation, route }: FamilyDashboardPr
         }
       } catch (error) {
         console.error('Error fetching family data:', error);
+        // If server fetch fails, try to load from local storage
+        await loadLatestPhotoUrl();
         Alert.alert('त्रुटि', 'परिवार की जानकारी लोड नहीं हो पाई।');
       } finally {
         setLoading(false);
@@ -112,19 +147,18 @@ export default function FamilyDashboard({ navigation, route }: FamilyDashboardPr
     navigation.navigate('UploadPhoto', {
       username: username,
       name: name,
-      onPhotoUpload: (
+      onPhotoUpload: async (
         uploadedImageUri: string, 
         predictionMessage?: string, 
         isMoringa?: boolean | null, 
         confidence?: number | null
       ) => {
-        // Update local state with the new total image count and latest photo URI
+        // Update local state with the new total image count
         setTotalImagesYet(prev => prev + 1);
         setPlantData(prev => ({
           ...prev,
           photoCount: prev.photoCount + 1,
         }));
-        if (uploadedImageUri) setLatestPhotoUri(uploadedImageUri);
         
         // NEW: Store the prediction results in the component's state
         // Safely assign, converting 'undefined' to 'null' for the state variables
@@ -132,8 +166,21 @@ export default function FamilyDashboard({ navigation, route }: FamilyDashboardPr
         setAiIsMoringa(isMoringa === undefined ? null : isMoringa);
         setAiConfidence(confidence === undefined ? null : confidence);
 
-        // Optionally, re-fetch full family data to ensure complete sync
-        // fetchFamilyData(); // Uncomment if you want to aggressively sync after upload
+        // Re-fetch family data to get the proper server URL for the latest photo
+        try {
+          const userId = route?.params?.userId;
+          if (userId) {
+            const data: FamilyData = await apiService.getFamilyByUserId(userId);
+            if (data.plant_photo) {
+              const serverPhotoUrl = `${API_BASE_URL}/uploads/${data.plant_photo}`;
+              setLatestPhotoUri(serverPhotoUrl);
+              // Save to local storage for persistence
+              await saveLatestPhotoUrl(serverPhotoUrl);
+            }
+          }
+        } catch (error) {
+          console.error('Error re-fetching family data after upload:', error);
+        }
       }
     });
   };
@@ -217,11 +264,11 @@ export default function FamilyDashboard({ navigation, route }: FamilyDashboardPr
           <View style={styles.careProgress}>
             <Text style={styles.progressLabel}>देखभाल स्कोर</Text>
             <ProgressBar 
-              progress={careScore / 100} 
+              progress={Math.min(careScore / 100, 1)} 
               color="#4CAF50" 
               style={styles.progressBar}
             />
-            <Text style={styles.progressText}>{careScore}%</Text>
+            <Text style={styles.progressText}>{Math.min(careScore, 100)}%</Text>
           </View>
 
           {/* Display Total Images Yet */}
@@ -306,44 +353,7 @@ export default function FamilyDashboard({ navigation, route }: FamilyDashboardPr
           </View>
         </Surface>
 
-        {/* Growth Timeline */}
-        <Surface style={styles.timelineContainer}>
-          <Title style={styles.sectionTitle}>विकास टाइमलाइन</Title>
-          <View style={styles.timeline}>
-            <View style={styles.timelineItem}>
-              <View style={styles.timelineDot}>
-                <Text style={styles.timelineEmoji}>🌱</Text>
-              </View>
-              <View style={styles.timelineContent}>
-                <Text style={styles.timelineTitle}>पौधा लगाया गया</Text>
-                <Text style={styles.timelineDate}>15 जून 2024</Text>
-                <Text style={styles.timelineDesc}>आंगनबाड़ी से पौधा प्राप्त किया</Text>
-              </View>
-            </View>
-            
-            <View style={styles.timelineItem}>
-              <View style={styles.timelineDot}>
-                <Text style={styles.timelineEmoji}>🌿</Text>
-              </View>
-              <View style={styles.timelineContent}>
-                <Text style={styles.timelineTitle}>पहली पत्तियां</Text>
-                <Text style={styles.timelineDate}>25 जून 2024</Text>
-                <Text style={styles.timelineDesc}>पौधे में नई पत्तियां आईं</Text>
-              </View>
-            </View>
-            
-            <View style={styles.timelineItem}>
-              <View style={styles.timelineDot}>
-                <Text style={styles.timelineEmoji}>🌳</Text>
-              </View>
-              <View style={styles.timelineContent}>
-                <Text style={styles.timelineTitle}>वर्तमान स्थिति</Text>
-                <Text style={styles.timelineDate}>आज</Text>
-                <Text style={styles.timelineDesc}>पौधा स्वस्थ और बढ़ रहा है</Text>
-              </View>
-            </View>
-          </View>
-        </Surface>
+
 
         {/* Munga Benefits */}
         <Surface style={styles.nutritionContainer}>

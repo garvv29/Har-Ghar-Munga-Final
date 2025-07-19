@@ -1,7 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'; 
 
 // API Configuration
-export const API_BASE_URL = 'https://grx6djfl-5001.inc1.devtunnels.ms'; // Your actual backend URL - keep this!
+export const API_BASE_URL = 'https://grx6djfl-5001.inc1.devtunnels.ms'; // Development URL
+// For production, you should replace this with your actual production server URL
+// export const API_BASE_URL = 'https://your-production-server.com';
 
 // API Response Types
 export interface LoginResponse {
@@ -460,6 +462,28 @@ async testConnection(): Promise<{ success: boolean; message: string }> {
       return response.json();
     } catch (error) {
       console.error('Error fetching total families and photos:', error);
+      throw error;
+    }
+  }
+
+  async getLatestStudentName(): Promise<{
+    success: boolean;
+    total_students: number;
+    total_images_uploaded: number;
+    latest_student_name: string;
+  }> {
+    try {
+      const response = await this.makeRequest<{
+        success: boolean;
+        total_students: number;
+        total_images_uploaded: number;
+        latest_student_name: string;
+      }>('/latest_student_name', {
+        method: 'GET',
+      });
+      return response;
+    } catch (error) {
+      console.error('Error fetching latest student name:', error);
       throw error;
     }
   }

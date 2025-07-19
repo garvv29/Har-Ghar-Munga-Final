@@ -68,11 +68,11 @@ export default function FamilyProgressScreen({ navigation }: FamilyProgressScree
           <View style={styles.careProgress}>
             <Text style={styles.progressLabel}>देखभाल स्कोर</Text>
             <ProgressBar 
-              progress={plantProgress.careScore / 100} 
+              progress={Math.min(plantProgress.careScore / 100, 1)} 
               color="#4CAF50" 
               style={styles.progressBar}
             />
-            <Text style={styles.progressText}>{plantProgress.careScore}%</Text>
+            <Text style={styles.progressText}>{Math.min(plantProgress.careScore, 100)}%</Text>
           </View>
         </Surface>
 

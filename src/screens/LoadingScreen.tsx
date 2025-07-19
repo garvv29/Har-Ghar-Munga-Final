@@ -13,48 +13,59 @@ export default function LoadingScreen({ navigation }: { navigation: any }) {
         if (result.success) {
           navigation.replace('Login');
         } else {
-          Alert.alert('नेटवर्क त्रुटि', 'सर्वर से कनेक्ट नहीं हो पा रहा है।');
+          // Instead of blocking the app, show a warning and proceed to login
+          console.warn('Server connection failed, proceeding to login anyway');
+          navigation.replace('Login');
         }
       } catch (error) {
-        Alert.alert('त्रुटि', 'कुछ गलत हो गया।');
+        // If connection fails completely, still proceed to login
+        console.error('Connection error:', error);
+        navigation.replace('Login');
       } finally {
         setLoading(false);
       }
     };
 
+    // Add a timeout to prevent infinite loading
+    const timeout = setTimeout(() => {
+      console.warn('Connection timeout, proceeding to login');
+      navigation.replace('Login');
+    }, 10000); // 10 seconds timeout
+
     checkConnectionAndNavigate();
+
+    return () => clearTimeout(timeout);
   }, []);
 
   return (
-
-  <View style={styles.container}>
-    {/* Main Content */}
-    <View style={styles.centerContent}>
-      <Image
-        source={require('../assets/logo.jpg')}
-        style={styles.image}
-        resizeMode="contain"
-      />
-      <Text style={styles.title}>हर घर मुंगा</Text>
-      <ActivityIndicator size="large" color="#ffffff" style={{ marginTop: 20 }} />
-    </View>
-
-    {/* Powered by Section */}
-    <View style={styles.footer}>
-      <Text style={styles.poweredText}>Powered by</Text>
-      <View style={styles.poweredByRow}>
+    <View style={styles.container}>
+      {/* Main Content */}
+      <View style={styles.centerContent}>
         <Image
-          source={require('../../assets/ssipmt.jpg')} 
-          style={styles.ssipmtLogo}
+          source={require('../assets/logo.jpg')}
+          style={styles.image}
           resizeMode="contain"
         />
-        <Text style={styles.instituteText}>SSIPMT</Text>
+        <Text style={styles.title}>हर घर मुंगा</Text>
+        <ActivityIndicator size="large" color="#ffffff" style={{ marginTop: 20 }} />
+      </View>
+
+      {/* Powered by Section */}
+      <View style={styles.footer}>
+        <Text style={styles.poweredText}>Powered by</Text>
+        <View style={styles.poweredByRow}>
+          <Image
+            source={require('../assets/ssipmt.jpg')} 
+            style={styles.ssipmtLogo}
+            resizeMode="contain"
+          />
+          <Text style={styles.instituteText}>SSIPMT</Text>
+        </View>
       </View>
     </View>
-  </View>
-);
-
+  );
 }
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -76,14 +87,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#fff',           
   },
-  logoWrapper: {
-  shadowColor: '#0f0',
-  shadowOffset: { width: 0, height: 4 },
-  shadowOpacity: 0.3,
-  shadowRadius: 6,
-  elevation: 10,            
-  borderRadius: 150,         
-},
   title: {
     fontSize: 24,
     color: '#ffffff',
@@ -104,23 +107,16 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     letterSpacing: 1.5,
   },
-  instituteRow: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  marginTop: 4,
-},
-poweredByRow: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'center',
-  marginTop: 2,
-},
-
-ssipmtLogo: {
-  width: 25,
-  height: 25,
-  marginRight: 6,
-}
-
+  poweredByRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  ssipmtLogo: {
+    width: 25,
+    height: 25,
+    marginRight: 6,
+  }
 });
 

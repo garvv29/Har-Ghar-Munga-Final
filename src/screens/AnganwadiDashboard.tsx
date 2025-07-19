@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, ScrollView, Dimensions, TouchableOpacity } from 'react-native';
-import { Card, Title, Paragraph, Button, Surface, Text, FAB, Chip } from 'react-native-paper';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, ScrollView, Dimensions, TouchableOpacity, Alert } from 'react-native';
+import { Card, Title, Paragraph, Button, Surface, Text, FAB, Chip, ActivityIndicator } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { apiService } from '../utils/api';
 
 const { width } = Dimensions.get('window');
 
@@ -10,11 +12,119 @@ interface AnganwadiDashboardProps {
 }
 
 export default function AnganwadiDashboard({ navigation }: AnganwadiDashboardProps) {
-  const [stats] = useState({
-    totalPlants: 45,
-    distributedPlants: 38,
-    activeFamilies: 32,
+  const [stats, setStats] = useState({
+    totalPlants: 0,
+    distributedPlants: 0,
+    activeFamilies: 0,
   });
+  const [latestStudentName, setLatestStudentName] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [notifications, setNotifications] = useState<Array<{
+    id: string;
+    message: string;
+    timestamp: number;
+    type: 'new_student' | 'photo_upload';
+  }>>([]);
+
+  // Helper function to save notifications to local storage
+  const saveNotifications = async (notifs: typeof notifications) => {
+    try {
+      await AsyncStorage.setItem('anganwadi_notifications', JSON.stringify(notifs));
+    } catch (error) {
+      console.error('Error saving notifications:', error);
+    }
+  };
+
+  // Helper function to load notifications from local storage
+  const loadNotifications = async () => {
+    try {
+      const saved = await AsyncStorage.getItem('anganwadi_notifications');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Filter out notifications older than 24 hours
+        const now = Date.now();
+        const validNotifications = parsed.filter((notif: any) => 
+          (now - notif.timestamp) < 24 * 60 * 60 * 1000
+        );
+        setNotifications(validNotifications);
+        // Save back the filtered notifications
+        await saveNotifications(validNotifications);
+      }
+    } catch (error) {
+      console.error('Error loading notifications:', error);
+    }
+  };
+
+  // Helper function to add new notification
+  const addNotification = async (message: string, type: 'new_student' | 'photo_upload') => {
+    const newNotification = {
+      id: Date.now().toString(),
+      message,
+      timestamp: Date.now(),
+      type
+    };
+    const updatedNotifications = [newNotification, ...notifications];
+    setNotifications(updatedNotifications);
+    await saveNotifications(updatedNotifications);
+  };
+
+  // Fetch latest student data from backend
+  const fetchLatestStudentData = async () => {
+    try {
+      setLoading(true);
+      const response = await apiService.getLatestStudentName();
+      
+      if (response.success) {
+        setStats({
+          totalPlants: response.total_students || 0,
+          distributedPlants: response.total_images_uploaded || 0,
+          activeFamilies: response.total_students || 0,
+        });
+
+        // Check if there's a new student
+        if (response.latest_student_name) {
+          const savedLatestStudent = await AsyncStorage.getItem('latest_student_name');
+          if (savedLatestStudent !== response.latest_student_name) {
+            // New student registered
+            setLatestStudentName(response.latest_student_name);
+            await AsyncStorage.setItem('latest_student_name', response.latest_student_name);
+            await addNotification(
+              `${response.latest_student_name} नया परिवार पंजीकृत हुआ`,
+              'new_student'
+            );
+          } else {
+            setLatestStudentName(response.latest_student_name);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching latest student data:', error);
+      Alert.alert('त्रुटि', 'डेटा लोड करने में समस्या हुई।');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Helper function to format time ago
+  const getTimeAgo = (timestamp: number): string => {
+    const now = Date.now();
+    const diff = now - timestamp;
+    const minutes = Math.floor(diff / (1000 * 60));
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+    if (minutes < 1) return 'अभी';
+    if (minutes < 60) return `${minutes} मिनट पहले`;
+    if (hours < 24) return `${hours} घंटे पहले`;
+    if (days < 7) return `${days} दिन पहले`;
+    return new Date(timestamp).toLocaleDateString('hi-IN');
+  };
+
+  // Load data on component mount
+  useEffect(() => {
+    loadNotifications();
+    fetchLatestStudentData();
+  }, []);
 
   const handleAddFamily = () => {
     navigation.navigate('AddFamily');
@@ -118,40 +228,37 @@ export default function AnganwadiDashboard({ navigation }: AnganwadiDashboardPro
         {/* Recent Activities */}
         <Surface style={styles.activitiesContainer}>
           <Title style={styles.sectionTitle}>हाल की गतिविधियां</Title>
-          <View style={styles.activityList}>
-            <View style={styles.activityItem}>
-              <View style={styles.activityIcon}>
-                <Text style={styles.activityEmoji}>🌱</Text>
-              </View>
-              <View style={styles.activityContent}>
-                <Text style={styles.activityTitle}>राम कुमार को पौधा वितरित</Text>
-                <Text style={styles.activityTime}>आज, 2:30 PM</Text>
-                <Chip style={styles.statusChip} textStyle={styles.statusText}>वितरित</Chip>
-              </View>
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color="#4CAF50" />
+              <Text style={styles.loadingText}>लोड हो रहा है...</Text>
             </View>
-            
-            <View style={styles.activityItem}>
-              <View style={styles.activityIcon}>
-                <Text style={styles.activityEmoji}>📸</Text>
-              </View>
-              <View style={styles.activityContent}>
-                <Text style={styles.activityTitle}>सीता देवी ने फोटो अपलोड किया</Text>
-                <Text style={styles.activityTime}>कल, 4:15 PM</Text>
-                <Chip style={styles.statusChip} textStyle={styles.statusText}>अपडेट</Chip>
-              </View>
+          ) : notifications.length > 0 ? (
+            <View style={styles.activityList}>
+              {notifications.map((notification) => {
+                const timeAgo = getTimeAgo(notification.timestamp);
+                const emoji = notification.type === 'new_student' ? '👨‍👩‍👧‍👦' : '📸';
+                const statusText = notification.type === 'new_student' ? 'नया' : 'अपडेट';
+                
+                return (
+                  <View key={notification.id} style={styles.activityItem}>
+                    <View style={styles.activityIcon}>
+                      <Text style={styles.activityEmoji}>{emoji}</Text>
+                    </View>
+                    <View style={styles.activityContent}>
+                      <Text style={styles.activityTitle}>{notification.message}</Text>
+                      <Text style={styles.activityTime}>{timeAgo}</Text>
+                      <Chip style={styles.statusChip} textStyle={styles.statusText}>{statusText}</Chip>
+                    </View>
+                  </View>
+                );
+              })}
             </View>
-            
-            <View style={styles.activityItem}>
-              <View style={styles.activityIcon}>
-                <Text style={styles.activityEmoji}>👨‍👩‍👧‍👦</Text>
-              </View>
-              <View style={styles.activityContent}>
-                <Text style={styles.activityTitle}>नया परिवार पंजीकृत</Text>
-                <Text style={styles.activityTime}>कल, 11:20 AM</Text>
-                <Chip style={styles.statusChip} textStyle={styles.statusText}>नया</Chip>
-              </View>
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>कोई हाल की गतिविधि नहीं</Text>
             </View>
-          </View>
+          )}
         </Surface>
       </ScrollView>
 
@@ -384,6 +491,23 @@ const styles = StyleSheet.create({
   statusText: {
     color: '#4CAF50',
     fontSize: 10,
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    padding: 20,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#666666',
+    marginTop: 8,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    padding: 20,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#666666',
   },
   fab: {
     position: 'absolute',
