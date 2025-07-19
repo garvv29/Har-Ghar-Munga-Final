@@ -203,6 +203,135 @@ async testConnection(): Promise<{ success: boolean; message: string }> {
   }
 }
 
+  // Fetch user data from external table
+  async fetchUserFromExternalTable(contactNumber: string): Promise<{
+    success: boolean;
+    message: string;
+    user?: {
+      id?: string;
+      username?: string;
+      role?: string;
+      name?: string;
+      centerCode?: string;
+      centerName?: string;
+      district?: string;
+      block?: string;
+      anganwadiId?: string;
+      workerName?: string;
+      contactNumber?: string;
+      [key: string]: any;
+    };
+  }> {
+    try {
+      console.log('🔍 Fetching from external table for contact:', contactNumber);
+      console.log('🔗 URL:', `${this.baseURL}/data1`);
+      
+      const response = await fetch(`${this.baseURL}data1`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log('📡 Response status:', response.status);
+      console.log('📡 Response headers:', response.headers);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Response error:', errorText);
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log('📊 External table data received:', data);
+      console.log('📊 Data type:', typeof data);
+      console.log('📊 Data length:', Array.isArray(data) ? data.length : 'Not an array');
+
+      if (!Array.isArray(data)) {
+        console.error('❌ Data is not an array:', data);
+        return {
+          success: false,
+          message: 'Invalid data format received from server'
+        };
+      }
+
+      // Find user by contact number
+      console.log('🔍 Searching for contact number:', contactNumber);
+      const user = data.find((item: any) => {
+        console.log('🔍 Checking item:', item);
+        const matches = item.contact_number === contactNumber || 
+                       item.mobile_number === contactNumber ||
+                       item.phone === contactNumber;
+        console.log('🔍 Contact match:', matches);
+        return matches;
+      });
+
+      if (user) {
+        console.log('✅ User found:', user);
+        // Map the external data to our user format
+        const mappedUser = {
+          id: user.id || user.user_id,
+          username: user.contact_number || user.mobile_number || user.phone,
+          role: this.determineUserRole(user),
+          name: user.name || user.full_name || user.child_name || user.worker_name,
+          centerCode: user.center_code || user.anganwadi_code || user.kendra_code,
+          centerName: user.center_name || user.anganwadi_center_name || user.kendra_name,
+          district: user.district,
+          block: user.block,
+          anganwadiId: user.anganwadi_id || user.worker_id,
+          workerName: user.worker_name || user.anganwadi_worker_name,
+          contactNumber: user.contact_number || user.mobile_number || user.phone,
+          // Add any other fields from the external table
+          ...user
+        };
+        
+        console.log('✅ Mapped user data:', mappedUser);
+        
+        return {
+          success: true,
+          message: 'User found in external table',
+          user: mappedUser
+        };
+      } else {
+        console.log('❌ User not found for contact:', contactNumber);
+        console.log('📊 Available contacts:', data.map((item: any) => item.contact_number || item.mobile_number || item.phone).slice(0, 5));
+        return {
+          success: false,
+          message: 'User not found in external table'
+        };
+      }
+    } catch (error) {
+      console.error('❌ Error fetching from external table:', error);
+      return {
+        success: false,
+        message: `Error fetching data: ${error}`
+      };
+    }
+  }
+
+  // Determine user role based on external table data
+  private determineUserRole(userData: any): string {
+    // Check for role indicators in the data
+    if (userData.role) {
+      return userData.role;
+    }
+    
+    // Check for Anganwadi worker indicators
+    if (userData.worker_name || userData.anganwadi_worker_name || 
+        userData.worker_id || userData.anganwadi_id) {
+      return 'aanganwadi';
+    }
+    
+    // Check for family/child indicators
+    if (userData.child_name || userData.family_name || 
+        userData.mother_name || userData.father_name) {
+      return 'family';
+    }
+    
+    // Default to family if no clear indicator
+    return 'family';
+  }
+
 
 
   // Authentication APIs

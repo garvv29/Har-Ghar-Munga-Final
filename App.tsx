@@ -45,19 +45,20 @@ function LoginScreen({ navigation }: { navigation: any }) {
       }
       
       console.log('Connection successful, attempting login...');
-      const response = await apiService.login(email.trim(), password);
-      console.log('Login response:', response);
+      
+      // First try to fetch user from external table using contact number
+      console.log('🔍 Fetching user from external table...');
+      console.log('📱 Contact number entered:', email.trim());
+      const externalUserResponse = await apiService.fetchUserFromExternalTable(email.trim());
+      console.log('📊 External user response:', externalUserResponse);
 
-      if (response.success && response.user) {
-        const user = response.user;
-
-        // Store the token if available
-        if (response.token) {
-          apiService.setToken(response.token);
-        }
+      if (externalUserResponse.success && externalUserResponse.user) {
+        // User found in external table
+        const user = externalUserResponse.user;
+        console.log('User found in external table:', user);
         
         // Navigate based on user role
-        const userRole = response.user?.role || response.role;
+        const userRole = user.role || 'family';
         console.log('User role:', userRole);
         
         switch (userRole) {
@@ -65,16 +66,27 @@ function LoginScreen({ navigation }: { navigation: any }) {
             Alert.alert('Admin dashboard is disabled.');
             break;
           case 'aanganwadi':
-            navigation.navigate('AnganwadiDashboard');
+            console.log('🚀 Navigating to AnganwadiDashboard with user data:', user);
+            navigation.navigate('AnganwadiDashboard', {
+              userData: user,
+              userId: user.username,
+              name: user.name,
+              centerCode: user.centerCode,
+              centerName: user.centerName,
+              district: user.district,
+              block: user.block,
+              anganwadiId: user.anganwadiId,
+              workerName: user.workerName,
+            });
             break;
           case 'family':
             const userName = user.name || '';
             const userUsername = user.username || '';
-            const guardianName = (user as any).guardian_name || '';
-            const fatherName = (user as any).father_name || '';
-            const motherName = (user as any).mother_name || '';
-            const age = (user as any).age || '';
-            const aanganwadi_code = (user as any).aanganwadi_code || (user as any).center_code || (user as any).anganwadi_center_code || '';
+            const guardianName = user.guardian_name || '';
+            const fatherName = user.father_name || '';
+            const motherName = user.mother_name || '';
+            const age = user.age || '';
+            const aanganwadi_code = user.centerCode || user.anganwadi_code || '';
             console.log("Aanganwadi code:", aanganwadi_code);
             console.log("Full user object:", user);
             console.log("Student details received:", user);
@@ -87,19 +99,51 @@ function LoginScreen({ navigation }: { navigation: any }) {
               fatherName,
               motherName,
               aanganwadi_code,
+              userData: user, // Pass full user data
             });
             break;
           default:
-            // If no specific role, try to determine from username or other fields
-            if (response.user?.username?.toUpperCase().includes('ADMIN') || 
-                response.user?.username?.toUpperCase().includes('CGCO')) {
-              Alert.alert('Admin dashboard is disabled.');
-            } else if (response.user?.username?.toUpperCase().includes('ANGANWADI') || 
-                       response.user?.username?.toUpperCase().includes('CGAB')) {
-              navigation.navigate('AnganwadiDashboard');
-            } else if (response.user?.username?.toUpperCase().includes('FAMILY') || 
-                       response.user?.username?.toUpperCase().includes('CGPV')) {
-              // Family user - extract and pass family details
+            Alert.alert('त्रुटि', 'अज्ञात उपयोगकर्ता भूमिका।');
+            break;
+        }
+              } else {
+          // If not found in external table, try regular login
+          console.log('User not found in external table, trying regular login...');
+          const response = await apiService.login(email.trim(), password);
+          console.log('Regular login response:', response);
+
+          if (response.success && response.user) {
+            const user = response.user;
+
+            // Store the token if available
+            if (response.token) {
+              apiService.setToken(response.token);
+            }
+            
+            // Navigate based on user role
+            const userRole = response.user?.role || response.role;
+            console.log('User role:', userRole);
+            
+            switch (userRole) {
+              case 'admin':
+                Alert.alert('Admin dashboard is disabled.');
+                break;
+              case 'aanganwadi':
+                console.log('🚀 Navigating to AnganwadiDashboard with backend user data:', user);
+                navigation.navigate('AnganwadiDashboard', {
+                  userData: user,
+                  userId: user.username,
+                  name: user.name,
+                  centerCode: (user as any).aanganwaadi_id,
+                  centerName: (user as any).aanganwaadi_id,
+                  district: (user as any).address,
+                  block: (user as any).address,
+                  anganwadiId: (user as any).aanganwaadi_id,
+                  workerName: user.name,
+                  supervisorName: (user as any).supervisor_name,
+                });
+                break;
+            case 'family':
               const userName = user.name || '';
               const userUsername = user.username || '';
               const guardianName = (user as any).guardian_name || '';
@@ -107,7 +151,10 @@ function LoginScreen({ navigation }: { navigation: any }) {
               const motherName = (user as any).mother_name || '';
               const age = (user as any).age || '';
               const aanganwadi_code = (user as any).aanganwadi_code || (user as any).center_code || (user as any).anganwadi_center_code || '';
-              
+              console.log("Aanganwadi code:", aanganwadi_code);
+              console.log("Full user object:", user);
+              console.log("Student details received:", user);
+
               navigation.navigate('FamilyDashboard', {
                 userId: userUsername,
                 name: userName,
@@ -117,13 +164,43 @@ function LoginScreen({ navigation }: { navigation: any }) {
                 motherName,
                 aanganwadi_code,
               });
-            } else {
-              Alert.alert('त्रुटि', 'अज्ञात उपयोगकर्ता भूमिका।');
-            }
-            break;
+              break;
+            default:
+              // If no specific role, try to determine from username or other fields
+              if (response.user?.username?.toUpperCase().includes('ADMIN') || 
+                  response.user?.username?.toUpperCase().includes('CGCO')) {
+                Alert.alert('Admin dashboard is disabled.');
+              } else if (response.user?.username?.toUpperCase().includes('ANGANWADI') || 
+                         response.user?.username?.toUpperCase().includes('CGAB')) {
+                navigation.navigate('AnganwadiDashboard');
+              } else if (response.user?.username?.toUpperCase().includes('FAMILY') || 
+                         response.user?.username?.toUpperCase().includes('CGPV')) {
+                // Family user - extract and pass family details
+                const userName = user.name || '';
+                const userUsername = user.username || '';
+                const guardianName = (user as any).guardian_name || '';
+                const fatherName = (user as any).father_name || '';
+                const motherName = (user as any).mother_name || '';
+                const age = (user as any).age || '';
+                const aanganwadi_code = (user as any).aanganwadi_code || (user as any).center_code || (user as any).anganwadi_center_code || '';
+                
+                navigation.navigate('FamilyDashboard', {
+                  userId: userUsername,
+                  name: userName,
+                  age,
+                  guardianName,
+                  fatherName,
+                  motherName,
+                  aanganwadi_code,
+                });
+              } else {
+                Alert.alert('त्रुटि', 'अज्ञात उपयोगकर्ता भूमिका।');
+              }
+              break;
+          }
+        } else {
+          Alert.alert('लॉगिन विफल', response.message || 'लॉगिन में त्रुटि हुई।');
         }
-      } else {
-        Alert.alert('लॉगिन विफल', response.message || 'लॉगिन में त्रुटि हुई।');
       }
     } catch (error) {
       console.error('Login error:', error);

@@ -9,20 +9,41 @@ const { width } = Dimensions.get('window');
 
 interface AnganwadiDashboardProps {
   navigation: any;
+  route?: {
+    params?: {
+      userData?: any;
+      userId?: string;
+      name?: string;
+      centerCode?: string;
+      centerName?: string;
+      district?: string;
+      block?: string;
+      anganwadiId?: string;
+      workerName?: string;
+    };
+  };
 }
 
-export default function AnganwadiDashboard({ navigation }: AnganwadiDashboardProps) {
+export default function AnganwadiDashboard({ navigation, route }: AnganwadiDashboardProps) {
   const [stats, setStats] = useState({
     totalPlants: 0,
     distributedPlants: 0,
     activeFamilies: 0,
   });
   const [centerInfo, setCenterInfo] = useState({
-    centerName: 'लोड हो रहा है...',
-    centerCode: 'लोड हो रहा है...',
-    workerName: 'लोड हो रहा है...',
+    centerName: route?.params?.userData?.name || route?.params?.name || 'लोड हो रहा है...',
+    centerCode: route?.params?.userData?.aanganwaadi_id || route?.params?.centerCode || 'लोड हो रहा है...',
+    workerName: route?.params?.userData?.name || route?.params?.workerName || 'लोड हो रहा है...',
+    gram: route?.params?.userData?.gram || route?.params?.district || 'लोड हो रहा है...',
+    anganwadiCode: route?.params?.userData?.aanganwaadi_id || route?.params?.anganwadiId || 'लोड हो रहा है...',
+    supervisorName: route?.params?.userData?.supervisor_name || 'लोड हो रहा है...',
     status: 'सक्रिय'
   });
+
+  // Debug: Log centerInfo changes
+  useEffect(() => {
+    console.log('🔄 CenterInfo state changed:', centerInfo);
+  }, [centerInfo]);
   const [latestStudentName, setLatestStudentName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [families, setFamilies] = useState<any[]>([]);
@@ -51,12 +72,20 @@ export default function AnganwadiDashboard({ navigation }: AnganwadiDashboardPro
         const parsed = JSON.parse(saved);
         // Filter out notifications older than 24 hours
         const now = Date.now();
-        const validNotifications = parsed.filter((notif: any) => 
-          (now - notif.timestamp) < 24 * 60 * 60 * 1000
-        );
+        const validNotifications = parsed.filter((notif: any) => {
+          const ageInHours = (now - notif.timestamp) / (1000 * 60 * 60);
+          console.log(`Notification age: ${ageInHours.toFixed(2)} hours`);
+          return ageInHours < 24;
+        });
+        
+        console.log(`Loaded ${validNotifications.length} valid notifications out of ${parsed.length} total`);
         setNotifications(validNotifications);
+        
         // Save back the filtered notifications
-        await saveNotifications(validNotifications);
+        if (validNotifications.length !== parsed.length) {
+          await saveNotifications(validNotifications);
+          console.log('Removed expired notifications');
+        }
       }
     } catch (error) {
       console.error('Error loading notifications:', error);
@@ -76,10 +105,41 @@ export default function AnganwadiDashboard({ navigation }: AnganwadiDashboardPro
     await saveNotifications(updatedNotifications);
   };
 
-  // Fetch center information from backend using users table
+  // Fetch center information from external table data or backend
   const fetchCenterInfo = async () => {
     try {
-      // Get logged in user info from AsyncStorage
+      console.log('🔍 fetchCenterInfo called');
+      console.log('📊 Route params:', route?.params);
+      
+      // First check if we have user data from external table
+      if (route?.params?.userData) {
+        const userData = route.params.userData;
+        console.log('✅ Using external table user data:', userData);
+        
+        const centerInfoData = {
+          centerName: userData.centerName || userData.gram || userData.aanganwadi_code || userData.aanganwaadi_id || 'आंगनबाड़ी केंद्र',
+          centerCode: userData.centerCode || userData.aanganwadi_code || userData.aanganwaadi_id || userData.kendra_code || 'AWC-001',
+          workerName: userData.workerName || userData.name || 'कार्यकर्ता',
+          gram: userData.gram || userData.address || userData.district || 'ग्राम',
+          anganwadiCode: userData.aanganwaadi_id || userData.aanganwadi_code || userData.anganwadiId || 'कोड',
+          supervisorName: userData.supervisor_name || userData.supervisorName || 'सुपरवाइजर',
+          status: 'सक्रिय'
+        };
+        
+        console.log('✅ Setting center info:', centerInfoData);
+        
+        // Force immediate state update
+        setTimeout(() => {
+          setCenterInfo(centerInfoData);
+          console.log('✅ Center info state updated via setTimeout');
+        }, 100);
+        
+        // Save user info to AsyncStorage for future use
+        await AsyncStorage.setItem('userInfo', JSON.stringify(userData));
+        return;
+      }
+      
+      // Fallback to backend API if no external table data
       const userInfo = await AsyncStorage.getItem('userInfo');
       if (!userInfo) {
         throw new Error('No user info found');
@@ -87,13 +147,40 @@ export default function AnganwadiDashboard({ navigation }: AnganwadiDashboardPro
       
       const user = JSON.parse(userInfo);
       
-      // Extract center information from user data according to the provided structure
-      setCenterInfo({
-        centerName: user.address || user.gram || 'आंगनबाड़ी केंद्र',
-        centerCode: user.aanganwaadi_id ? `AWC-${user.aanganwaadi_id}` : 'AWC-001',
-        workerName: user.name || 'कार्यकर्ता',
-        status: 'सक्रिय'
+      // Use the get_user_info endpoint to fetch complete user information
+      const username = user.username || user.contact_number;
+      if (!username) {
+        throw new Error('Username not found in user info');
+      }
+      
+      const response = await fetch(`${API_BASE_URL}/get_user_info?username=${encodeURIComponent(username)}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
+      
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.user) {
+          const userData = result.user;
+          
+          // Extract center information from the fetched user data
+          setCenterInfo({
+            centerName: userData.gram || userData.aanganwadi_code || 'आंगनबाड़ी केंद्र',
+            centerCode: userData.aanganwaadi_id ? `AWC-${userData.aanganwaadi_id}` : 'AWC-001',
+            workerName: userData.name || 'कार्यकर्ता',
+            gram: userData.gram || userData.address || 'ग्राम',
+            anganwadiCode: userData.aanganwaadi_id || 'कोड',
+            supervisorName: userData.supervisor_name || 'सुपरवाइजर',
+            status: 'सक्रिय'
+          });
+        } else {
+          throw new Error('Failed to fetch user info from backend');
+        }
+      } else {
+        throw new Error(`Failed to fetch user info: ${response.status}`);
+      }
       
     } catch (error) {
       console.error('Error fetching center info:', error);
@@ -102,6 +189,9 @@ export default function AnganwadiDashboard({ navigation }: AnganwadiDashboardPro
         centerName: 'आंगनबाड़ी केंद्र',
         centerCode: 'AWC-001',
         workerName: 'कार्यकर्ता',
+        gram: 'ग्राम',
+        anganwadiCode: 'कोड',
+        supervisorName: 'सुपरवाइजर',
         status: 'सक्रिय'
       });
     }
@@ -157,22 +247,52 @@ export default function AnganwadiDashboard({ navigation }: AnganwadiDashboardPro
           activeFamilies: activeFamilies,
         });
 
-        // Get the latest family (using the first one for now since we don't have registration date)
-        const latestFamily = families[0];
+        // Check for new families by comparing with saved family IDs
+        const savedFamilyIds = await AsyncStorage.getItem('saved_family_ids');
+        const currentFamilyIds = families.map((f: any) => f.id || f.username).filter(Boolean);
         
-        if (latestFamily && latestFamily.childName) {
-          const savedLatestFamily = await AsyncStorage.getItem('latest_family_name');
-          if (savedLatestFamily !== latestFamily.childName) {
-            // New family registered
-            setLatestStudentName(latestFamily.childName);
-            await AsyncStorage.setItem('latest_family_name', latestFamily.childName);
-            await addNotification(
-              `${latestFamily.childName} नया परिवार पंजीकृत हुआ`,
-              'new_student'
-            );
-          } else {
-            setLatestStudentName(latestFamily.childName);
+        if (savedFamilyIds === null) {
+          // First time loading, save the IDs
+          await AsyncStorage.setItem('saved_family_ids', JSON.stringify(currentFamilyIds));
+        } else {
+          try {
+            const previousIds = JSON.parse(savedFamilyIds);
+            const newFamilyIds = currentFamilyIds.filter((id: string) => !previousIds.includes(id));
+            
+            if (newFamilyIds.length > 0) {
+              // New families have been added
+              console.log('New family IDs detected:', newFamilyIds);
+              const newFamilies = families.filter((f: any) => newFamilyIds.includes(f.id || f.username));
+              console.log('New families found:', newFamilies);
+              
+              for (const newFamily of newFamilies) {
+                const studentName = newFamily.childName || newFamily.name || 'नया छात्र';
+                const parentName = newFamily.motherName || newFamily.fatherName || newFamily.parentName || '';
+                
+                let notificationText = '';
+                if (parentName) {
+                  notificationText = `नया छात्र पंजीकृत: ${studentName} (${parentName})`;
+                } else {
+                  notificationText = `नया छात्र पंजीकृत: ${studentName}`;
+                }
+                
+                console.log('Adding notification for:', notificationText);
+                await addNotification(notificationText, 'new_student');
+              }
+            }
+            
+            // Update the saved IDs
+            await AsyncStorage.setItem('saved_family_ids', JSON.stringify(currentFamilyIds));
+          } catch (error) {
+            console.error('Error processing family IDs:', error);
+            // Fallback: save current IDs
+            await AsyncStorage.setItem('saved_family_ids', JSON.stringify(currentFamilyIds));
           }
+        }
+        
+        // Set the latest student name for display
+        if (families.length > 0 && families[0].childName) {
+          setLatestStudentName(families[0].childName);
         }
       } else {
         setStats({
@@ -253,11 +373,24 @@ export default function AnganwadiDashboard({ navigation }: AnganwadiDashboardPro
 
   // Load data on component mount
   useEffect(() => {
+    console.log('🚀 Component mounted, route params:', route?.params);
     loadNotifications();
     fetchCenterInfo();
     fetchDashboardStats(); // Try dashboard stats first
     fetchLatestStudentData(); // Fallback to family data
-  }, []);
+  }, [route?.params]); // Add route.params as dependency
+
+  // Add focus listener to refresh data when returning to dashboard
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      // Refresh data when user returns to this screen
+      console.log('🔄 Screen focused, refreshing data...');
+      loadNotifications(); // Reload notifications to remove expired ones
+      fetchLatestStudentData();
+    });
+
+    return unsubscribe;
+  }, [navigation, loadNotifications, fetchLatestStudentData]);
 
   const handleAddFamily = () => {
     navigation.navigate('AddFamily');
@@ -275,6 +408,14 @@ export default function AnganwadiDashboard({ navigation }: AnganwadiDashboardPro
 
   const handlePlantOptions = () => {
     navigation.navigate('PlantOptions');
+  };
+
+  // Manual refresh function for debugging
+  const handleManualRefresh = async () => {
+    console.log('Manual refresh triggered');
+    // Clear saved IDs to force detection of all families as new
+    await AsyncStorage.removeItem('saved_family_ids');
+    await fetchLatestStudentData();
   };
 
   return (
@@ -296,15 +437,19 @@ export default function AnganwadiDashboard({ navigation }: AnganwadiDashboardPro
             <View style={styles.headerText}>
               <Title style={styles.headerTitle}>आंगनबाड़ी डैशबोर्ड</Title>
               <View style={styles.centerInfo}>
-                <Text style={styles.centerName}>केंद्र: {centerInfo.centerName}</Text>
-                <Text style={styles.centerCode}>कोड: {centerInfo.centerCode}</Text>
-                <Text style={styles.workerName}>कार्यकर्ता: {centerInfo.workerName}</Text>
+                <Text style={styles.centerName}>ग्राम: {centerInfo.gram}</Text>
+                <Text style={styles.centerCode}>आंगनबाड़ी कोड: {centerInfo.anganwadiCode}</Text>
+                <Text style={styles.workerName}>नाम: {centerInfo.workerName}</Text>
+                <Text style={styles.supervisorName}>सुपरवाइजर: {centerInfo.supervisorName}</Text>
               </View>
               <View style={styles.statusInfo}>
                 <View style={styles.statusBadge}>
                   <Text style={styles.statusBadgeText}>सक्रिय</Text>
                 </View>
                 <Text style={styles.lastUpdate}>अंतिम अपडेट: आज, 3:45 PM</Text>
+                <TouchableOpacity onPress={handleManualRefresh} style={styles.refreshButton}>
+                  <Text style={styles.refreshButtonText}>🔄 रिफ्रेश</Text>
+                </TouchableOpacity>
               </View>
             </View>
           </View>
@@ -355,16 +500,20 @@ export default function AnganwadiDashboard({ navigation }: AnganwadiDashboardPro
           <Title style={styles.sectionTitle}>केंद्र की जानकारी</Title>
           <View style={styles.infoGrid}>
             <View style={styles.infoItem}>
-              <Text style={styles.infoLabel}>केंद्र का नाम</Text>
-              <Text style={styles.infoValue}>{centerInfo.centerName}</Text>
+              <Text style={styles.infoLabel}>ग्राम</Text>
+              <Text style={styles.infoValue}>{centerInfo.gram}</Text>
             </View>
             <View style={styles.infoItem}>
-              <Text style={styles.infoLabel}>केंद्र कोड</Text>
-              <Text style={styles.infoValue}>{centerInfo.centerCode}</Text>
+              <Text style={styles.infoLabel}>आंगनबाड़ी कोड</Text>
+              <Text style={styles.infoValue}>{centerInfo.anganwadiCode}</Text>
             </View>
             <View style={styles.infoItem}>
-              <Text style={styles.infoLabel}>कार्यकर्ता</Text>
+              <Text style={styles.infoLabel}>नाम</Text>
               <Text style={styles.infoValue}>{centerInfo.workerName}</Text>
+            </View>
+            <View style={styles.infoItem}>
+              <Text style={styles.infoLabel}>सुपरवाइजर</Text>
+              <Text style={styles.infoValue}>{centerInfo.supervisorName}</Text>
             </View>
             <View style={styles.infoItem}>
               <Text style={styles.infoLabel}>स्थिति</Text>
@@ -375,45 +524,17 @@ export default function AnganwadiDashboard({ navigation }: AnganwadiDashboardPro
 
         {/* Tips Section */}
         <Surface style={styles.tipsContainer}>
-          <Title style={styles.sectionTitle}>आज का टिप</Title>
+          <Title style={styles.sectionTitle}>टिप</Title>
           <View style={styles.tipContent}>
-            <Text style={styles.tipEmoji}>💡</Text>
+            <Text style={styles.tipEmoji}>🌱</Text>
             <Text style={styles.tipText}>
-              नियमित रूप से परिवारों से संपर्क करें और उनकी प्रगति की जानकारी लें। 
-              मूंगा पौधों की देखभाल के लिए उन्हें सही मार्गदर्शन दें।
+              मूंगा पौधों को नियमित पानी दें और धूप में रखें। पत्तियों को पीला होने से बचाने के लिए 
+              जैविक खाद का उपयोग करें। परिवारों को पौधों की देखभाल के लिए प्रेरित करें।
             </Text>
           </View>
         </Surface>
 
-        {/* Recent Photos Section */}
-        <Surface style={styles.photosContainer}>
-          <Title style={styles.sectionTitle}>हाल की तस्वीरें</Title>
-          {loading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="small" color="#4CAF50" />
-              <Text style={styles.loadingText}>लोड हो रहा है...</Text>
-            </View>
-          ) : families && families.length > 0 ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photosScroll}>
-              {families.slice(0, 5).map((family: any) => (
-                family.plant_photo && (
-                  <View key={family.id} style={styles.photoCard}>
-                    <Image 
-                      source={{ uri: `${API_BASE_URL}/uploads/${family.plant_photo}` }} 
-                      style={styles.familyPhoto}
-                      resizeMode="cover"
-                    />
-                    <Text style={styles.photoLabel}>{family.childName}</Text>
-                  </View>
-                )
-              ))}
-            </ScrollView>
-          ) : (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>कोई तस्वीर नहीं मिली</Text>
-            </View>
-          )}
-        </Surface>
+
 
         {/* Recent Activities */}
         <Surface style={styles.activitiesContainer}>
@@ -783,6 +904,23 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: '#4CAF50',
+  },
+  refreshButton: {
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginLeft: 8,
+  },
+  refreshButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  supervisorName: {
+    fontSize: 13,
+    color: '#666666',
+    marginBottom: 2,
   },
   photosContainer: {
     padding: 20,

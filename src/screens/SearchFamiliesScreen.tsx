@@ -1,39 +1,62 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, View, ScrollView, Alert, ActivityIndicator, Linking, Modal, Clipboard } from 'react-native';
-import { Card, Title, Button, Surface, Text, TextInput, Appbar, Chip, Avatar, IconButton, Portal, Dialog } from 'react-native-paper';
+import { StyleSheet, View, ScrollView, Alert, ActivityIndicator, Linking, Image } from 'react-native'; // <--- Ensure Image is imported
+import { Card, Title, Button, Surface, Text, TextInput, Appbar, Chip, Avatar, IconButton, Modal, Portal } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Keyboard } from 'react-native'; 
-import {  } from '../utils/api';
+import { Keyboard } from 'react-native';
 import { API_BASE_URL } from '../utils/api';
+
+// Extend FamilyData to include all details needed for the popup
+// These fields are expected from the /families/user/{userId} endpoint
+interface FullFamilyData {
+  id: string;
+  username: string; // The username from the DB, often the mobile number
+  childName: string; // 'name' from DB
+  parentName: string; // 'guardian_name' from DB
+  motherName: string; // 'mother_name' from DB
+  fatherName: string; // 'father_name' from DB
+  mobileNumber: string; // 'mobile' from DB (used for display and call)
+  village: string; // 'address' from DB
+  age: number;
+  dateOfBirth: string; // 'dob' from DB
+  weight: number;
+  height: number;
+  anganwadiCode: number; // 'aanganwadi_code' from DB
+  plant_photo?: string; // URL to plant photo
+  pledge_photo?: string; // URL to pledge photo - still in interface, but won't be displayed
+  totalImagesYet: number;
+  health_status: string; // 'health_status' from DB
+}
+
 interface SearchFamiliesScreenProps {
   navigation: any;
 }
 
+// Initial FamilyData interface (from search results) - remains the same for search
 interface FamilyData {
   id: string;
   childName: string;
   parentName: string;
   mobileNumber: string;
   village: string;
-  // registrationDate: string; -- (Still removed as per your DB schema)
   plantDistributed: boolean;
 }
+
 
 const apiService = {
   searchFamilies: async (query: string, signal?: AbortSignal): Promise<FamilyData[]> => {
     let url = `${API_BASE_URL}/search?query=${encodeURIComponent(query)}`;
-    
-    console.log("FETCHING URL:", url); 
-    
+
+    console.log("FETCHING URL:", url);
+
     try {
       const response = await fetch(url, { signal });
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({})); 
+        const errorData = await response.json().catch(() => ({}));
         const errorMessage = errorData.message || errorData.error || `HTTP error! status: ${response.status}`;
         throw new Error(errorMessage);
       }
       const data = await response.json();
-      console.log("RECEIVED DATA:", data); 
+      console.log("RECEIVED DATA:", data);
       return data as FamilyData[];
     } catch (error: any) {
       if (error.name === 'AbortError') {
@@ -45,14 +68,37 @@ const apiService = {
       return [];
     }
   },
+  // New API call to fetch full details for a single family
+  getFamilyDetails: async (userId: string): Promise<FullFamilyData | null> => {
+    let url = `${API_BASE_URL}/families/user1/${userId}`; // Matches your backend endpoint
+
+    console.log("FETCHING FULL FAMILY DETAILS URL:", url);
+
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.message || errorData.error || `HTTP error! status: ${response.status}`;
+        throw new Error(errorMessage);
+      }
+      const data = await response.json();
+      console.log("RECEIVED FULL FAMILY DETAILS DATA:", data);
+      return data as FullFamilyData;
+    } catch (error: any) {
+      console.error('ERROR FETCHING FULL FAMILY DETAILS:', error);
+      Alert.alert('त्रुटि', `परिवार का विवरण लोड नहीं हो पाया। (${error.message || 'कृपया पुनः प्रयास करें।'})`);
+      return null;
+    }
+  }
 };
 
 export default function SearchFamiliesScreen({ navigation }: SearchFamiliesScreenProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredFamilies, setFilteredFamilies] = useState<FamilyData[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedFamily, setSelectedFamily] = useState<FamilyData | null>(null);
-  const [detailsVisible, setDetailsVisible] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedFamilyDetails, setSelectedFamilyDetails] = useState<FullFamilyData | null>(null);
+  const [detailsLoading, setDetailsLoading] = useState(false); // New loading state for modal
 
   const fetchFamilies = useCallback(async (query: string, signal: AbortSignal) => {
     setLoading(true);
@@ -67,28 +113,17 @@ export default function SearchFamiliesScreen({ navigation }: SearchFamiliesScree
   }, []);
 
   useEffect(() => {
-    // AbortController for cancelling previous requests
     const abortController = new AbortController();
     const signal = abortController.signal;
-
-    // --- DEBOUNCING LOGIC ADDED HERE ---
-    const DEBOUNCE_DELAY = 500; // milliseconds
-
+    const DEBOUNCE_DELAY = 500;
     const handler = setTimeout(() => {
-      // Only call fetchFamilies if there's an actual search query,
-      // or if you want to fetch all on empty query (current behavior)
       fetchFamilies(searchQuery, signal);
     }, DEBOUNCE_DELAY);
-
-    // Cleanup function: clears the timeout and aborts the fetch request
-    // This runs on component unmount AND before re-running the effect
     return () => {
-      clearTimeout(handler); // Clear the timeout if searchQuery changes rapidly
-      abortController.abort(); // Abort any ongoing fetch request
+      clearTimeout(handler);
+      abortController.abort();
     };
-    // --- END DEBOUNCING LOGIC ---
-
-  }, [fetchFamilies, searchQuery]); // Dependencies: re-run when fetchFamilies or searchQuery change
+  }, [fetchFamilies, searchQuery]);
 
   const handleSearchInputChange = (text: string) => {
     setSearchQuery(text);
@@ -96,23 +131,42 @@ export default function SearchFamiliesScreen({ navigation }: SearchFamiliesScree
 
   const triggerSearch = () => {
     Keyboard.dismiss();
-    // This function can remain, but the primary trigger is now the debounced useEffect.
-    // If you want a hard "search" button to override debounce, you'd call fetchFamilies directly here.
-    // For now, it just ensures the latest state is captured if the user hits enter.
   };
 
-  const handleViewDetails = (family: FamilyData) => {
-    setSelectedFamily(family);
-    setDetailsVisible(true);
-  };
-
-  const handleCallFamily = async (mobileNumber: string) => {
-    try {
-      await Clipboard.setString(mobileNumber);
-      Alert.alert('सफलता!', `${mobileNumber} नंबर कॉपी हो गया है। अब आप कॉल कर सकते हैं।`);
-    } catch (error) {
-      Alert.alert('त्रुटि', 'नंबर कॉपी नहीं हो पाया');
+  // Modified handleViewDetails to fetch full data and open modal
+  const handleViewDetails = async (familyId: string) => {
+    setDetailsLoading(true); // Start loading for modal
+    const details = await apiService.getFamilyDetails(familyId);
+    setDetailsLoading(false); // Stop loading
+    if (details) {
+      setSelectedFamilyDetails(details);
+      setModalVisible(true);
+    } else {
+      // Error message is already handled in apiService.getFamilyDetails
     }
+  };
+
+  const handleCallFamily = (mobileNumber: string) => {
+    if (!mobileNumber) {
+      Alert.alert('त्रुटि', 'मोबाइल नंबर उपलब्ध नहीं है।');
+      return;
+    }
+    Alert.alert('कॉल करें', `${mobileNumber} पर कॉल करना चाहते हैं?`, [
+      { text: 'नहीं', style: 'cancel' },
+      {
+        text: 'हाँ',
+        onPress: () => {
+          const url = `tel:${mobileNumber}`;
+          Linking.canOpenURL(url).then(supported => {
+            if (supported) {
+              Linking.openURL(url);
+            } else {
+              Alert.alert('त्रुटि', 'कॉल फ़ंक्शन आपके डिवाइस पर समर्थित नहीं है।');
+            }
+          });
+        }
+      }
+    ]);
   };
 
   return (
@@ -121,7 +175,7 @@ export default function SearchFamiliesScreen({ navigation }: SearchFamiliesScree
         colors={['#2E7D32', '#4CAF50', '#66BB6A']}
         style={styles.backgroundGradient}
       />
-      
+
       <Appbar.Header style={styles.header}>
         <Appbar.BackAction onPress={() => navigation.goBack()} color="#FFFFFF" />
         <Appbar.Content title="परिवार खोजें" titleStyle={styles.headerTitle} />
@@ -136,13 +190,13 @@ export default function SearchFamiliesScreen({ navigation }: SearchFamiliesScree
             onSubmitEditing={triggerSearch}
             mode="outlined"
             style={styles.searchInput}
-            placeholder="बच्चे का नाम या मोबाइल नंबर लिखें" 
+            placeholder="बच्चे का नाम या मोबाइल नंबर लिखें"
             left={<TextInput.Icon icon="magnify" color="#4CAF50" />}
             right={
-              searchQuery ? 
-                <TextInput.Icon icon="close" onPress={() => {setSearchQuery('');}} color="#666" />
-                : 
-                <IconButton icon="magnify" size={24} onPress={triggerSearch}/>
+              searchQuery ?
+                <TextInput.Icon icon="close" onPress={() => { setSearchQuery(''); }} color="#666" />
+                :
+                <IconButton icon="magnify" size={24} onPress={triggerSearch} />
             }
             outlineColor="#E0E0E0"
             activeOutlineColor="#4CAF50"
@@ -156,7 +210,7 @@ export default function SearchFamiliesScreen({ navigation }: SearchFamiliesScree
             disabled={loading}
             icon="magnify"
           >
-            खोजें
+            <Text style={{ color: '#FFFFFF' }}>खोजें</Text>
           </Button>
         </Surface>
 
@@ -165,7 +219,7 @@ export default function SearchFamiliesScreen({ navigation }: SearchFamiliesScree
             <ActivityIndicator size="small" color="#4CAF50" />
           ) : (
             <Text style={styles.summaryText}>
-              {filteredFamilies.length} परिवार मिले
+              <Text>{filteredFamilies.length}</Text> परिवार मिले
             </Text>
           )}
         </Surface>
@@ -182,15 +236,16 @@ export default function SearchFamiliesScreen({ navigation }: SearchFamiliesScree
                 <Card.Content style={styles.familyCardContent}>
                   <View style={styles.familyHeader}>
                     <View style={styles.familyInfo}>
-                      <Avatar.Text 
-                        size={50} 
-                        label={family.childName.charAt(0)} 
+                      <Avatar.Text
+                        size={50}
+                        label={family.childName.charAt(0)}
                         style={{ backgroundColor: '#4CAF50' }}
                       />
                       <View style={styles.familyDetails}>
                         <Text style={styles.childName}>{family.childName}</Text>
-                        <Text style={styles.parentName}>माता/पिता: {family.parentName}</Text>
-                        <Text style={styles.village}>गाँव: {family.village}</Text>
+                        <Text style={styles.parentName}>माता/पिता: <Text>{family.parentName}</Text></Text>
+                        <Text style={styles.village}>गाँव: <Text>{family.village}</Text></Text>
+                        <Text style={styles.mobileNumberDisplay}>मोबाइल: <Text>{family.mobileNumber}</Text></Text>
                       </View>
                     </View>
                     <View style={styles.familyActions}>
@@ -204,17 +259,17 @@ export default function SearchFamiliesScreen({ navigation }: SearchFamiliesScree
                       <IconButton
                         icon="eye"
                         size={20}
-                        onPress={() => handleViewDetails(family)}
+                        onPress={() => handleViewDetails(family.id)} // This will now trigger the modal
                         style={styles.actionIcon}
                         iconColor="#2196F3"
                       />
                     </View>
                   </View>
-                  
+
                   <View style={styles.familyFooter}>
                     <View style={styles.statusInfo}>
                       {family.plantDistributed && (
-                        <Chip 
+                        <Chip
                           style={styles.plantChip}
                           textStyle={styles.plantText}
                           icon="check-circle"
@@ -223,7 +278,6 @@ export default function SearchFamiliesScreen({ navigation }: SearchFamiliesScree
                         </Chip>
                       )}
                     </View>
-                    <Text style={styles.mobileNumber}>{family.mobileNumber}</Text>
                   </View>
                 </Card.Content>
               </Card>
@@ -242,61 +296,100 @@ export default function SearchFamiliesScreen({ navigation }: SearchFamiliesScree
                 style={styles.resetButton}
                 textColor="#4CAF50"
               >
-                रीसेट करें
+                <Text>रीसेट करें</Text>
               </Button>
             </View>
           )}
         </Surface>
       </ScrollView>
 
-      {/* Family Details Dialog */}
+      {/* Full Details Modal */}
       <Portal>
-        <Dialog visible={detailsVisible} onDismiss={() => setDetailsVisible(false)}>
-          <Dialog.Title>परिवार की जानकारी</Dialog.Title>
-          <Dialog.Content>
-            {selectedFamily && (
-              <View style={styles.detailsContent}>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>बच्चे का नाम:</Text>
-                  <Text style={styles.detailValue}>{selectedFamily.childName}</Text>
+        <Modal
+          visible={modalVisible}
+          onDismiss={() => setModalVisible(false)}
+          contentContainerStyle={styles.modalContent}
+        >
+          {detailsLoading ? (
+            <View style={styles.modalLoading}>
+              <ActivityIndicator size="large" color="#4CAF50" />
+              <Text style={styles.loadingText}>विवरण लोड हो रहा है...</Text>
+            </View>
+          ) : selectedFamilyDetails ? (
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Title style={styles.modalTitle}>परिवार का विवरण</Title>
+              <Text style={styles.detailText}>
+                <Text style={styles.detailLabel}>बच्चे का नाम:</Text> <Text>{selectedFamilyDetails.childName}</Text>
+              </Text>
+              <Text style={styles.detailText}>
+                <Text style={styles.detailLabel}>अभिभावक का नाम:</Text> <Text>{selectedFamilyDetails.parentName}</Text>
+              </Text>
+              <Text style={styles.detailText}>
+                <Text style={styles.detailLabel}>पिता का नाम:</Text> <Text>{selectedFamilyDetails.fatherName}</Text>
+              </Text>
+              <Text style={styles.detailText}>
+                <Text style={styles.detailLabel}>माता का नाम:</Text> <Text>{selectedFamilyDetails.motherName}</Text>
+              </Text>
+              <Text style={styles.detailText}>
+                <Text style={styles.detailLabel}>मोबाइल नंबर:</Text> <Text>{selectedFamilyDetails.mobileNumber}</Text>
+              </Text>
+              <Text style={styles.detailText}>
+                <Text style={styles.detailLabel}>गांव:</Text> <Text>{selectedFamilyDetails.village}</Text>
+              </Text>
+              <Text style={styles.detailText}>
+                <Text style={styles.detailLabel}>आयु:</Text> <Text>{selectedFamilyDetails.age} वर्ष</Text>
+              </Text>
+              <Text style={styles.detailText}>
+                <Text style={styles.detailLabel}>जन्म तिथि:</Text> <Text>{selectedFamilyDetails.dateOfBirth}</Text>
+              </Text>
+              <Text style={styles.detailText}>
+                <Text style={styles.detailLabel}>वजन:</Text> <Text>{selectedFamilyDetails.weight} किग्रा</Text>
+              </Text>
+              <Text style={styles.detailText}>
+                <Text style={styles.detailLabel}>ऊंचाई:</Text> <Text>{selectedFamilyDetails.height} सेमी</Text>
+              </Text>
+              <Text style={styles.detailText}>
+                <Text style={styles.detailLabel}>स्वास्थ्य स्थिति:</Text> <Text>{selectedFamilyDetails.health_status}</Text>
+              </Text>
+              <Text style={styles.detailText}>
+                <Text style={styles.detailLabel}>आंगनवाड़ी कोड:</Text> <Text>{selectedFamilyDetails.anganwadiCode}</Text>
+              </Text>
+              <Text style={styles.detailText}>
+                <Text style={styles.detailLabel}>कुल इमेज अपलोड:</Text> <Text>{selectedFamilyDetails.totalImagesYet}</Text>
+              </Text>
+
+              {/* Only Plant Photo View Section - Keep this as is, it's correct */}
+              {selectedFamilyDetails.plant_photo ? ( // Add a check here for plant_photo existence
+                <View style={styles.imageContainer}>
+                  <Text style={styles.detailLabel}>पौधे की फोटो:</Text>
+                  <Card.Cover
+                    source={{ uri: selectedFamilyDetails.plant_photo }}
+                    style={styles.modalImage}
+                    // Adding onError for debugging if it still fails to load
+                    onError={(e) => console.log("Card.Cover image loading error:", e.nativeEvent.error)}
+                  />
                 </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>माता/पिता:</Text>
-                  <Text style={styles.detailValue}>{selectedFamily.parentName}</Text>
+              ) : (
+                <View style={styles.imageContainer}>
+                    <Text style={styles.detailLabel}>पौधे की फोटो:</Text>
+                    <Text style={styles.detailText}>उपलब्ध नहीं</Text>
                 </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>मोबाइल:</Text>
-                  <Text style={styles.detailValue}>{selectedFamily.mobileNumber}</Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>गाँव:</Text>
-                  <Text style={styles.detailValue}>{selectedFamily.village}</Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>पौधा वितरण:</Text>
-                  <Chip 
-                    style={selectedFamily.plantDistributed ? styles.plantChip : styles.noPlantChip}
-                    textStyle={selectedFamily.plantDistributed ? styles.plantText : styles.noPlantText}
-                    icon={selectedFamily.plantDistributed ? "check-circle" : "close-circle"}
-                  >
-                    {selectedFamily.plantDistributed ? 'हाँ' : 'नहीं'}
-                  </Chip>
-                </View>
-              </View>
-            )}
-          </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={() => setDetailsVisible(false)}>बंद करें</Button>
-            {selectedFamily && (
-              <Button onPress={() => {
-                setDetailsVisible(false);
-                handleCallFamily(selectedFamily.mobileNumber);
-              }}>
-                नंबर कॉपी करें
+              )}
+              {/* End Only Plant Photo View Section */}
+
+              <Button mode="contained" onPress={() => setModalVisible(false)} style={styles.closeButton}>
+                <Text style={{ color: '#FFFFFF' }}>बंद करें</Text>
               </Button>
-            )}
-          </Dialog.Actions>
-        </Dialog>
+            </ScrollView>
+          ) : (
+            <View style={styles.modalEmpty}>
+              <Text style={styles.detailText}>विवरण उपलब्ध नहीं है।</Text>
+              <Button mode="contained" onPress={() => setModalVisible(false)} style={styles.closeButton}>
+                <Text style={{ color: '#FFFFFF' }}>बंद करें</Text>
+              </Button>
+            </View>
+          )}
+        </Modal>
       </Portal>
     </View>
   );
@@ -412,6 +505,12 @@ const styles = StyleSheet.create({
     color: '#666666',
     marginBottom: 2,
   },
+  mobileNumberDisplay: {
+    fontSize: 13,
+    color: '#2E7D32',
+    fontWeight: '600',
+    marginTop: 4,
+  },
   familyActions: {
     flexDirection: 'row',
   },
@@ -477,35 +576,60 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#4CAF50',
   },
-  detailsContent: {
-    gap: 12,
+  // Modal Specific Styles
+  modalContent: {
+    backgroundColor: 'white',
+    padding: 20,
+    margin: 20,
+    borderRadius: 16,
+    maxHeight: '80%', // Limit modal height
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
   },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 4,
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    textAlign: 'center',
+    color: '#2E7D32',
+  },
+  detailText: {
+    fontSize: 14,
+    marginBottom: 8,
+    color: '#333',
+    lineHeight: 20,
   },
   detailLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666666',
-    flex: 1,
+    fontWeight: 'bold',
+    color: '#1a1a1a', // Darker color for labels
   },
-  detailValue: {
-    fontSize: 14,
-    color: '#1a1a1a',
-    fontWeight: '500',
-    flex: 2,
-    textAlign: 'right',
+  modalImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: 8,
+    marginTop: 10,
+    marginBottom: 10,
   },
-  noPlantChip: {
-    height: 28,
-    backgroundColor: '#FFEBEE',
+  imageContainer: {
+    marginTop: 15,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+    paddingTop: 15,
   },
-  noPlantText: {
-    fontSize: 11,
-    color: '#D32F2F',
-    fontWeight: '600',
+  closeButton: {
+    marginTop: 20,
+    borderRadius: 12,
+    backgroundColor: '#4CAF50',
   },
+  modalLoading: {
+    alignItems: 'center',
+    paddingVertical: 50,
+  },
+  modalEmpty: {
+    alignItems: 'center',
+    paddingVertical: 50,
+  }
 });

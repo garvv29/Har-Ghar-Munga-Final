@@ -154,6 +154,10 @@ export default function FamilyDashboard({ navigation, route }: FamilyDashboardPr
         isMoringa?: boolean | null, 
         confidence?: number | null
       ) => {
+        // IMMEDIATELY show the uploaded photo
+        setLatestPhotoUri(uploadedImageUri);
+        await saveLatestPhotoUrl(uploadedImageUri);
+        
         // Update local state with the new total image count
         setTotalImagesYet(prev => prev + 1);
         setPlantData(prev => ({
@@ -161,27 +165,13 @@ export default function FamilyDashboard({ navigation, route }: FamilyDashboardPr
           photoCount: prev.photoCount + 1,
         }));
         
-        // NEW: Store the prediction results in the component's state
-        // Safely assign, converting 'undefined' to 'null' for the state variables
+        // Store the AI prediction results separately
         setAiPredictionStatus(predictionMessage || null);
         setAiIsMoringa(isMoringa === undefined ? null : isMoringa);
         setAiConfidence(confidence === undefined ? null : confidence);
 
-        // Re-fetch family data to get the proper server URL for the latest photo
-        try {
-          const userId = route?.params?.userId;
-          if (userId) {
-            const data: FamilyData = await apiService.getFamilyByUserId(userId);
-            if (data.plant_photo) {
-              const serverPhotoUrl = `${API_BASE_URL}/uploads/${data.plant_photo}`;
-              setLatestPhotoUri(serverPhotoUrl);
-              // Save to local storage for persistence
-              await saveLatestPhotoUrl(serverPhotoUrl);
-            }
-          }
-        } catch (error) {
-          console.error('Error re-fetching family data after upload:', error);
-        }
+        // Photo stays as uploaded - no API fetch needed
+        // The uploaded photo URI will persist until next upload
       }
     });
   };
@@ -372,8 +362,8 @@ export default function FamilyDashboard({ navigation, route }: FamilyDashboardPr
           </View>
         </Surface>
 
-        {/* Latest Photo (moved below care schedule) */}
-        {latestPhotoUri && (
+        {/* Latest Photo - Only show if recently uploaded */}
+        {latestPhotoUri && (aiPredictionStatus || route?.params?.uploadedPredictionMessage) && (
           <Surface style={styles.latestPhotoContainer}>
             <Title style={styles.sectionTitle}>नवीनतम फोटो</Title>
             <Image
@@ -381,27 +371,31 @@ export default function FamilyDashboard({ navigation, route }: FamilyDashboardPr
               style={styles.latestPhoto}
               resizeMode="cover"
             />
-            {/* NEW: Display AI Prediction */}
-            {aiPredictionStatus && (
-              <View style={styles.aiPredictionBox}>
+          </Surface>
+        )}
+
+        {/* AI Prediction Result */}
+        {aiPredictionStatus && (
+          <Surface style={styles.aiPredictionContainer}>
+            <Title style={styles.sectionTitle}>AI विश्लेषण</Title>
+            <View style={styles.aiPredictionBox}>
+              <Text style={[
+                styles.aiPredictionText,
+                aiIsMoringa === true ? styles.aiPredictionMoringa : styles.aiPredictionNotMoringa
+              ]}>
+                {aiIsMoringa === true ? '✅ यह मोरिंगा पौधा है (AI द्वारा)' : 
+                 aiIsMoringa === false ? '❌ यह मोरिंगा पौधा नहीं लगता (AI द्वारा)' :
+                 '❗ AI पहचान में त्रुटि हुई'}
+              </Text>
+              {aiConfidence !== null && (
                 <Text style={[
-                  styles.aiPredictionText,
+                  styles.aiConfidenceText,
                   aiIsMoringa === true ? styles.aiPredictionMoringa : styles.aiPredictionNotMoringa
                 ]}>
-                  {aiIsMoringa === true ? '✅ यह मोरिंगा पौधा है (AI द्वारा)' : 
-                   aiIsMoringa === false ? '❌ यह मोरिंगा पौधा नहीं लगता (AI द्वारा)' :
-                   '❗ AI पहचान में त्रुटि हुई'}
+                  आत्मविश्वास: {aiConfidence}%
                 </Text>
-                {aiConfidence !== null && (
-                  <Text style={[
-                    styles.aiConfidenceText,
-                    aiIsMoringa === true ? styles.aiPredictionMoringa : styles.aiPredictionNotMoringa
-                  ]}>
-                    आत्मविश्वास: {aiConfidence}%
-                  </Text>
-                )}
-              </View>
-            )}
+              )}
+            </View>
           </Surface>
         )}
 
@@ -978,5 +972,16 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: '#4CAF50',
+  },
+  aiPredictionContainer: {
+    padding: 20,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    elevation: 6,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
   },
 });

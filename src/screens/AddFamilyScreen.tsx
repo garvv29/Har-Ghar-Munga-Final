@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, Button, Alert, ScrollView, Image, Platform, StyleSheet, TouchableOpacity } from 'react-native'; // Added TouchableOpacity
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from '../utils/api';
 
 interface AddFamilyScreenProps {
@@ -187,7 +188,14 @@ export default function AddFamilyScreen({ navigation }: AddFamilyScreenProps) {
 
       if (response.ok && result.success) {
         Alert.alert('सफलता!', 'बच्चे का पंजीकरण सफलतापूर्वक हो गया।', [
-          { text: 'ठीक है', onPress: () => navigation.goBack() },
+                      { 
+              text: 'ठीक है', 
+              onPress: () => {
+                // Clear the saved family IDs to force refresh of notifications
+                AsyncStorage.removeItem('saved_family_ids');
+                navigation.goBack();
+              }
+            },
         ]);
       } else {
         Alert.alert('त्रुटि', result.message || 'पंजीकरण असफल रहा');
