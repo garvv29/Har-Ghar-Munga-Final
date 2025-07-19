@@ -35,18 +35,22 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
-# IDE
-.vscode/
-.idea/
-
-# Build files
+# Android
+android/app/.cxx/
 android/app/build/
 android/build/
 android/gradle/
+android/local.properties
 android/.gradle/
+android/.idea/
+android/*.iml
+android/app/*.iml
 
-# EAS
-.easignore
+# iOS
+ios/build/
+ios/Pods/
+ios/*.xcworkspace
+ios/*.xcodeproj
 
 # Temporary files
 *.tmp

@@ -40,8 +40,8 @@ function LoginScreen({ navigation }: { navigation: any }) {
       console.log('Connection test result:', connectionTest);
 
       if (!connectionTest.success) {
-        console.warn('Server connection failed, but proceeding with login attempt');
-        // Don't block login, just warn and continue
+        Alert.alert('कनेक्शन त्रुटि', `सर्वर से कनेक्ट नहीं हो पा रहा है: ${connectionTest.message}`);
+        return;
       }
       
       console.log('Connection successful, attempting login...');
@@ -127,7 +127,7 @@ function LoginScreen({ navigation }: { navigation: any }) {
       }
     } catch (error) {
       console.error('Login error:', error);
-      Alert.alert('नेटवर्क त्रुटि', 'सर्वर से कनेक्ट नहीं हो पा रहा है। कृपया इंटरनेट कनेक्शन जांचें और पुनः प्रयास करें।');
+      Alert.alert('नेटवर्क त्रुटि', `सर्वर से कनेक्ट नहीं हो पा रहा है: ${error}`);
     } finally {
       setLoading(false);
     }

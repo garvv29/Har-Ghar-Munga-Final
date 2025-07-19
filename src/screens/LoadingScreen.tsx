@@ -13,28 +13,16 @@ export default function LoadingScreen({ navigation }: { navigation: any }) {
         if (result.success) {
           navigation.replace('Login');
         } else {
-          // Instead of blocking the app, show a warning and proceed to login
-          console.warn('Server connection failed, proceeding to login anyway');
-          navigation.replace('Login');
+          Alert.alert('नेटवर्क त्रुटि', 'सर्वर से कनेक्ट नहीं हो पा रहा है।');
         }
       } catch (error) {
-        // If connection fails completely, still proceed to login
-        console.error('Connection error:', error);
-        navigation.replace('Login');
+        Alert.alert('त्रुटि', 'कुछ गलत हो गया।');
       } finally {
         setLoading(false);
       }
     };
 
-    // Add a timeout to prevent infinite loading
-    const timeout = setTimeout(() => {
-      console.warn('Connection timeout, proceeding to login');
-      navigation.replace('Login');
-    }, 10000); // 10 seconds timeout
-
     checkConnectionAndNavigate();
-
-    return () => clearTimeout(timeout);
   }, []);
 
   return (

@@ -4,14 +4,14 @@
     "slug": "HarGharMunga",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/logo.jpg",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "privacy": "public",
     "splash": {
-      "image": "./assets/logo.jpg",
+      "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#4CAF50"
+      "backgroundColor": "#ffffff"
     },
     "ios": {
       "supportsTablet": true,
@@ -20,8 +20,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/logo.jpg",
-        "backgroundColor": "#4CAF50"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
       "allowBackup": true,
@@ -30,7 +30,7 @@
       "package": "com.anonymous.HarGharMunga"
     },
     "web": {
-      "favicon": "./assets/logo.jpg"
+      "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-router"

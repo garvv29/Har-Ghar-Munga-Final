@@ -33,12 +33,13 @@ interface FamilyDashboardProps {
 export default function FamilyDashboard({ navigation, route }: FamilyDashboardProps) {
   const [plantData, setPlantData] = useState({
     plantName: 'मूंनगा पौधा #123',
-    plantAge: '45 दिन',
+    plantAge: '0 दिन',
     healthStatus: 'स्वस्थ',
     growthStage: 'बढ़ रहा है',
     lastWatered: 'आज, सुबह 8:00',
     nextWatering: 'कल, सुबह 8:00',
     photoCount: 0,
+    plantStartDate: new Date(), // Track when plant was started
   });
 
   const [waterCompleted, setWaterCompleted] = useState(false);
@@ -185,13 +186,32 @@ export default function FamilyDashboard({ navigation, route }: FamilyDashboardPr
     });
   };
 
-  const handleViewNutrition = () => {
-    navigation.navigate('NutritionGuide');
+  // Calculate plant age dynamically
+  const calculatePlantAge = () => {
+    const now = new Date();
+    const startDate = plantData.plantStartDate;
+    const diffTime = Math.abs(now.getTime() - startDate.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return `${diffDays} दिन`;
   };
 
-  const handleViewCareTips = () => {
-    navigation.navigate('CareTips');
-  };
+  // Update plant age every day
+  useEffect(() => {
+    const updatePlantAge = () => {
+      setPlantData(prev => ({
+        ...prev,
+        plantAge: calculatePlantAge()
+      }));
+    };
+
+    // Update immediately
+    updatePlantAge();
+
+    // Update every day at midnight
+    const interval = setInterval(updatePlantAge, 24 * 60 * 60 * 1000);
+    
+    return () => clearInterval(interval);
+  }, [plantData.plantStartDate]);
 
   const handleWaterPlant = () => {
     setWaterCompleted(true);
@@ -278,23 +298,81 @@ export default function FamilyDashboard({ navigation, route }: FamilyDashboardPr
           </View>
         </Surface>
 
-        {/* Quick Actions */}
-        <Surface style={styles.actionsContainer}>
-          <Title style={styles.sectionTitle}>त्वरित कार्य</Title>
-          <View style={styles.actionGrid}>
-            <Button 
-              mode="contained" 
-              icon="camera"
-              style={styles.actionButton}
-              buttonColor="#4CAF50"
-              onPress={handleUploadPhoto}
-            >
-              फोटो अपलोड
-            </Button>
+
+
+        {/* Plant Statistics */}
+        <Surface style={styles.statsContainer}>
+          <Title style={styles.sectionTitle}>पौधे की स्थिति</Title>
+          <View style={styles.statsGrid}>
+            <View style={styles.statCard}>
+              <Text style={styles.statEmoji}>📸</Text>
+              <Text style={styles.statNumber}>{totalImagesYet}</Text>
+              <Text style={styles.statLabel}>कुल फोटो</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={styles.statEmoji}>🎯</Text>
+              <Text style={styles.statNumber}>{Math.min(careScore, 100)}%</Text>
+              <Text style={styles.statLabel}>देखभाल स्कोर</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={styles.statEmoji}>🌱</Text>
+              <Text style={styles.statNumber}>{plantData.plantAge}</Text>
+              <Text style={styles.statLabel}>पौधे की उम्र</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={styles.statEmoji}>💧</Text>
+              <Text style={styles.statNumber}>{waterCompleted ? 'हाँ' : 'नहीं'}</Text>
+              <Text style={styles.statLabel}>आज पानी दिया</Text>
+            </View>
           </View>
         </Surface>
 
-        {/* Latest Photo (moved here) */}
+        {/* Plant Care Schedule */}
+        <Surface style={styles.scheduleContainer}>
+          <Title style={styles.sectionTitle}>देखभाल कार्यक्रम</Title>
+          <View style={styles.scheduleList}>
+            <View style={styles.scheduleItem}>
+              <View style={styles.scheduleIcon}>
+                <Text style={styles.scheduleEmoji}>💧</Text>
+              </View>
+              <View style={styles.scheduleContent}>
+                <Text style={styles.scheduleTitle}>पानी देना</Text>
+                <Text style={styles.scheduleTime}>{plantData.nextWatering}</Text>
+                <Text style={styles.scheduleStatus}>अंतिम: {plantData.lastWatered}</Text>
+              </View>
+              <Button 
+                mode="contained" 
+                style={styles.scheduleButton}
+                buttonColor={waterCompleted ? "#666666" : "#4CAF50"}
+                disabled={waterCompleted}
+                onPress={handleWaterPlant}
+              >
+                {waterCompleted ? 'पूर्ण' : 'पूर्ण करें'}
+              </Button>
+            </View>
+            
+            <View style={styles.scheduleItem}>
+              <View style={styles.scheduleIcon}>
+                <Text style={styles.scheduleEmoji}>📸</Text>
+              </View>
+              <View style={styles.scheduleContent}>
+                <Text style={styles.scheduleTitle}>फोटो अपलोड</Text>
+                <Text style={styles.scheduleTime}>साप्ताहिक</Text>
+                <Text style={styles.scheduleStatus}>प्रगति ट्रैक करने के लिए</Text>
+              </View>
+              <Button 
+                mode="outlined" 
+                style={styles.scheduleButton}
+                textColor="#4CAF50"
+                onPress={handleUploadPhoto}
+              >
+                अपलोड करें
+              </Button>
+            </View>
+          </View>
+        </Surface>
+
+        {/* Latest Photo (moved below care schedule) */}
         {latestPhotoUri && (
           <Surface style={styles.latestPhotoContainer}>
             <Title style={styles.sectionTitle}>नवीनतम फोटो</Title>
@@ -327,28 +405,66 @@ export default function FamilyDashboard({ navigation, route }: FamilyDashboardPr
           </Surface>
         )}
 
-        {/* Plant Care Schedule */}
-        <Surface style={styles.scheduleContainer}>
-          <Title style={styles.sectionTitle}>देखभाल कार्यक्रम</Title>
-          <View style={styles.scheduleList}>
-            <View style={styles.scheduleItem}>
-              <View style={styles.scheduleIcon}>
-                <Text style={styles.scheduleEmoji}>💧</Text>
+        {/* Nutrition Guide */}
+        <Surface style={styles.guideContainer}>
+          <View style={styles.guideHeaderRow}>
+            <Title style={styles.sectionTitle}>पोषण गाइड</Title>
+            <Button 
+              mode="outlined" 
+              icon="arrow-right"
+              style={styles.guideButton}
+              textColor="#4CAF50"
+              onPress={() => navigation.navigate('NutritionGuide')}
+            >
+              देखें
+            </Button>
+          </View>
+          
+          <View style={styles.guidePreview}>
+            <View style={styles.guidePreviewItem}>
+              <Text style={styles.guidePreviewEmoji}>🌱</Text>
+              <Text style={styles.guidePreviewText}>देखभाल टिप्स</Text>
+            </View>
+            <View style={styles.guidePreviewItem}>
+              <Text style={styles.guidePreviewEmoji}>🥗</Text>
+              <Text style={styles.guidePreviewText}>पोषण लाभ</Text>
+            </View>
+            <View style={styles.guidePreviewItem}>
+              <Text style={styles.guidePreviewEmoji}>💡</Text>
+              <Text style={styles.guidePreviewText}>विशेषज्ञ सलाह</Text>
+            </View>
+          </View>
+        </Surface>
+
+        {/* Achievement Progress */}
+        <Surface style={styles.achievementContainer}>
+          <Title style={styles.sectionTitle}>उपलब्धियां</Title>
+          <View style={styles.achievementList}>
+            <View style={[styles.achievementItem, totalImagesYet >= 1 && styles.achievementCompleted]}>
+              <Text style={styles.achievementEmoji}>🌱</Text>
+              <View style={styles.achievementContent}>
+                <Text style={styles.achievementTitle}>पहली फोटो</Text>
+                <Text style={styles.achievementDesc}>पहली फोटो अपलोड करें</Text>
               </View>
-              <View style={styles.scheduleContent}>
-                <Text style={styles.scheduleTitle}>पानी देना</Text>
-                <Text style={styles.scheduleTime}>{plantData.nextWatering}</Text>
-                <Text style={styles.scheduleStatus}>अंतिम: {plantData.lastWatered}</Text>
+              <Text style={styles.achievementStatus}>{totalImagesYet >= 1 ? '✅' : '⏳'}</Text>
+            </View>
+            
+            <View style={[styles.achievementItem, totalImagesYet >= 4 && styles.achievementCompleted]}>
+              <Text style={styles.achievementEmoji}>📈</Text>
+              <View style={styles.achievementContent}>
+                <Text style={styles.achievementTitle}>नियमित अपडेट</Text>
+                <Text style={styles.achievementDesc}>4 फोटो अपलोड करें</Text>
               </View>
-              <Button 
-                mode="contained" 
-                style={styles.scheduleButton}
-                buttonColor={waterCompleted ? "#666666" : "#4CAF50"}
-                disabled={waterCompleted}
-                onPress={handleWaterPlant}
-              >
-                {waterCompleted ? 'पूर्ण' : 'पूर्ण करें'}
-              </Button>
+              <Text style={styles.achievementStatus}>{totalImagesYet >= 4 ? '✅' : '⏳'}</Text>
+            </View>
+            
+            <View style={[styles.achievementItem, totalImagesYet >= 8 && styles.achievementCompleted]}>
+              <Text style={styles.achievementEmoji}>🏆</Text>
+              <View style={styles.achievementContent}>
+                <Text style={styles.achievementTitle}>मास्टर गार्डनर</Text>
+                <Text style={styles.achievementDesc}>सभी 8 फोटो अपलोड करें</Text>
+              </View>
+              <Text style={styles.achievementStatus}>{totalImagesYet >= 8 ? '✅' : '⏳'}</Text>
             </View>
           </View>
         </Surface>
@@ -579,6 +695,56 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 8,
   },
+  fullWidthButton: {
+    width: '100%',
+    borderRadius: 12,
+    paddingVertical: 12,
+  },
+  statsContainer: {
+    padding: 20,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    elevation: 6,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  statCard: {
+    width: '48%',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 12,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  statEmoji: {
+    fontSize: 24,
+    marginBottom: 8,
+  },
+  statNumber: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#4CAF50',
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#666666',
+    textAlign: 'center',
+  },
   latestPhotoContainer: {
     padding: 20,
     backgroundColor: '#ffffff',
@@ -683,6 +849,97 @@ const styles = StyleSheet.create({
   scheduleButton: {
     borderRadius: 8,
     paddingHorizontal: 5,
+  },
+  guideContainer: {
+    padding: 20,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    elevation: 6,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+  },
+  guideHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  guideButton: {
+    borderRadius: 8,
+    borderColor: '#4CAF50',
+  },
+  guidePreview: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  guidePreviewItem: {
+    alignItems: 'center',
+    flex: 1,
+    padding: 12,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 8,
+    marginHorizontal: 4,
+  },
+  guidePreviewEmoji: {
+    fontSize: 24,
+    marginBottom: 8,
+  },
+  guidePreviewText: {
+    fontSize: 12,
+    color: '#666666',
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  achievementContainer: {
+    padding: 20,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    elevation: 6,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+  },
+  achievementList: {
+    gap: 12,
+  },
+  achievementItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F5F5F5',
+    padding: 12,
+    borderRadius: 10,
+    borderLeftWidth: 4,
+    borderLeftColor: '#E0E0E0',
+  },
+  achievementCompleted: {
+    backgroundColor: '#E8F5E8',
+    borderLeftColor: '#4CAF50',
+  },
+  achievementEmoji: {
+    fontSize: 20,
+    marginRight: 12,
+  },
+  achievementContent: {
+    flex: 1,
+  },
+  achievementTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1a1a1a',
+    marginBottom: 2,
+  },
+  achievementDesc: {
+    fontSize: 12,
+    color: '#666666',
+  },
+  achievementStatus: {
+    fontSize: 18,
+    marginLeft: 8,
   },
   timelineContainer: {
     padding: 20,

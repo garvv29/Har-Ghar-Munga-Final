@@ -1,48 +1,93 @@
-# Har Ghar Munga App
+# Har Ghar Munga - AI Assistant App
 
-A React Native application for tracking family progress and Anganwadi activities.
+A modern React Native application built with Expo and TypeScript, featuring a clean and minimal UI design with AI-powered features.
 
-## Features
+## 🚀 Tech Stack
 
-- **Role-based Authentication**: Family, Anganwadi, and Admin roles
-- **Photo Upload**: Capture and upload photos without cropping
-- **Progress Tracking**: Monitor family progress with 100% cap
-- **Local Storage**: Photos persist locally on device
-- **Dynamic Notifications**: 24-hour expiry notifications for Anganwadi
-- **Error Handling**: Robust error handling and fallback navigation
+- **Frontend**: React Native with TypeScript
+- **Framework**: Expo
+- **UI Components**: React Native Paper
+- **Navigation**: React Navigation
+- **Routing**: Expo Router
 
-## Build Options
+## 📱 Features
 
-### 1. GitHub Actions (Recommended)
-- Automatic build on code push
-- No local setup required
-- APK available for download
+- Clean, minimal UI with tile/block designs
+- AI Chat functionality
+- Quick Analysis tools
+- Smart utilities powered by AI
+- Modern card-based interface
+- Responsive design
 
-### 2. Docker Build
+## 🛠️ Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd HarGharMunga
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Start the development server**
+   ```bash
+   npm start
+   ```
+
+## 📱 Running the App
+
+### Android
 ```bash
-build-with-docker.bat
+npm run android
 ```
 
-### 3. Local Build
+### iOS
 ```bash
-build-apk.bat
+npm run ios
 ```
 
-### 4. EAS Build
+### Web
 ```bash
-eas build --platform android --profile production
+npm run web
 ```
 
-## Installation
+## 🎨 Design Philosophy
 
-1. Clone the repository
-2. Install dependencies: `npm install`
-3. Run the app: `npx expo start`
+- **Clean & Minimal**: Focus on essential features with a clutter-free interface
+- **Tile/Block Design**: Uses card-based layouts for better organization
+- **Modern Aesthetic**: Contemporary design with subtle shadows and rounded corners
+- **Performance-First**: Optimized for fast AI responses and smooth interactions
 
-## API Endpoints
+## 📁 Project Structure
 
-See `API_ENDPOINTS.md` for detailed API documentation.
+```
+HarGharMunga/
+├── App.tsx              # Main application component
+├── package.json         # Dependencies and scripts
+├── tsconfig.json        # TypeScript configuration
+├── app.json            # Expo configuration
+├── assets/             # Images, fonts, and other assets
+└── README.md           # Project documentation
+```
 
----
+## 🔧 Development
 
-**Latest Build**: Ready for production deployment! 🚀
+The app is built with:
+- **React Native Paper** for UI components
+- **TypeScript** for type safety
+- **Expo** for easy development and deployment
+- **React Navigation** for screen navigation
+
+## 🚀 Next Steps
+
+- [ ] Implement AI chat functionality
+- [ ] Create user authentication
+- [ ] Add more AI-powered features
+- [ ] Implement real-time updates
+
+## 📄 License
+
+This project is licensed under the MIT License. # harGharApp

@@ -3,7 +3,7 @@ import { StyleSheet, View, ScrollView, Dimensions, TouchableOpacity, Alert } fro
 import { Card, Title, Paragraph, Button, Surface, Text, FAB, Chip, ActivityIndicator } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { apiService } from '../utils/api';
+import { apiService, API_BASE_URL } from '../utils/api';
 
 const { width } = Dimensions.get('window');
 
@@ -16,6 +16,12 @@ export default function AnganwadiDashboard({ navigation }: AnganwadiDashboardPro
     totalPlants: 0,
     distributedPlants: 0,
     activeFamilies: 0,
+  });
+  const [centerInfo, setCenterInfo] = useState({
+    centerName: 'लोड हो रहा है...',
+    centerCode: 'लोड हो रहा है...',
+    workerName: 'लोड हो रहा है...',
+    status: 'सक्रिय'
   });
   const [latestStudentName, setLatestStudentName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -68,34 +74,85 @@ export default function AnganwadiDashboard({ navigation }: AnganwadiDashboardPro
     await saveNotifications(updatedNotifications);
   };
 
-  // Fetch latest student data from backend
+  // Fetch center information from backend using users table
+  const fetchCenterInfo = async () => {
+    try {
+      // Get logged in user info from AsyncStorage
+      const userInfo = await AsyncStorage.getItem('userInfo');
+      if (!userInfo) {
+        throw new Error('No user info found');
+      }
+      
+      const user = JSON.parse(userInfo);
+      
+      // Extract center information from user data according to the provided structure
+      setCenterInfo({
+        centerName: user.address || user.gram || 'आंगनबाड़ी केंद्र',
+        centerCode: user.aanganwaadi_id ? `AWC-${user.aanganwaadi_id}` : 'AWC-001',
+        workerName: user.name || 'कार्यकर्ता',
+        status: 'सक्रिय'
+      });
+      
+    } catch (error) {
+      console.error('Error fetching center info:', error);
+      // Fallback to default values on error
+      setCenterInfo({
+        centerName: 'आंगनबाड़ी केंद्र',
+        centerCode: 'AWC-001',
+        workerName: 'कार्यकर्ता',
+        status: 'सक्रिय'
+      });
+    }
+  };
+
+  // Fetch latest student data from backend using existing endpoints
   const fetchLatestStudentData = async () => {
     try {
       setLoading(true);
-      const response = await apiService.getLatestStudentName();
       
-      if (response.success) {
+      // Use the existing /search endpoint to get all students
+      const response = await fetch(`${API_BASE_URL}/search`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch students data');
+      }
+      
+      const students = await response.json();
+      
+      if (students && students.length > 0) {
+        // Calculate stats
+        const totalStudents = students.length;
+        const totalImagesUploaded = students.filter((student: any) => student.plantDistributed).length;
+        
         setStats({
-          totalPlants: response.total_students || 0,
-          distributedPlants: response.total_images_uploaded || 0,
-          activeFamilies: response.total_students || 0,
+          totalPlants: totalStudents,
+          distributedPlants: totalImagesUploaded,
+          activeFamilies: totalStudents,
         });
 
-        // Check if there's a new student
-        if (response.latest_student_name) {
+        // Get the latest student (assuming students are ordered by registration date)
+        // Since we don't have registration date in the response, we'll use the last one in the array
+        const latestStudent = students[students.length - 1];
+        
+        if (latestStudent && latestStudent.childName) {
           const savedLatestStudent = await AsyncStorage.getItem('latest_student_name');
-          if (savedLatestStudent !== response.latest_student_name) {
+          if (savedLatestStudent !== latestStudent.childName) {
             // New student registered
-            setLatestStudentName(response.latest_student_name);
-            await AsyncStorage.setItem('latest_student_name', response.latest_student_name);
+            setLatestStudentName(latestStudent.childName);
+            await AsyncStorage.setItem('latest_student_name', latestStudent.childName);
             await addNotification(
-              `${response.latest_student_name} नया परिवार पंजीकृत हुआ`,
+              `${latestStudent.childName} नया परिवार पंजीकृत हुआ`,
               'new_student'
             );
           } else {
-            setLatestStudentName(response.latest_student_name);
+            setLatestStudentName(latestStudent.childName);
           }
         }
+      } else {
+        setStats({
+          totalPlants: 0,
+          distributedPlants: 0,
+          activeFamilies: 0,
+        });
       }
     } catch (error) {
       console.error('Error fetching latest student data:', error);
@@ -123,6 +180,7 @@ export default function AnganwadiDashboard({ navigation }: AnganwadiDashboardPro
   // Load data on component mount
   useEffect(() => {
     loadNotifications();
+    fetchCenterInfo();
     fetchLatestStudentData();
   }, []);
 
@@ -161,9 +219,9 @@ export default function AnganwadiDashboard({ navigation }: AnganwadiDashboardPro
             <View style={styles.headerText}>
               <Title style={styles.headerTitle}>आंगनबाड़ी डैशबोर्ड</Title>
               <View style={styles.centerInfo}>
-                <Text style={styles.centerName}>केंद्र: सरस्वती आंगनबाड़ी केंद्र</Text>
-                <Text style={styles.centerCode}>कोड: AWC-123-DLH</Text>
-                <Text style={styles.workerName}>कार्यकर्ता: श्रीमती सुनीता देवी</Text>
+                <Text style={styles.centerName}>केंद्र: {centerInfo.centerName}</Text>
+                <Text style={styles.centerCode}>कोड: {centerInfo.centerCode}</Text>
+                <Text style={styles.workerName}>कार्यकर्ता: {centerInfo.workerName}</Text>
               </View>
               <View style={styles.statusInfo}>
                 <View style={styles.statusBadge}>
@@ -175,55 +233,80 @@ export default function AnganwadiDashboard({ navigation }: AnganwadiDashboardPro
           </View>
         </Surface>
 
-        {/* Quick Stats */}
-        <Surface style={styles.statsContainer}>
-          <Title style={styles.sectionTitle}>आज का सारांश</Title>
-          <View style={styles.statsGrid}>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>{stats.totalPlants}</Text>
-              <Text style={styles.statLabel}>कुल पौधे</Text>
+
+
+        {/* Quick Actions */}
+        <Surface style={styles.quickActionsContainer}>
+          <Title style={styles.sectionTitle}>त्वरित कार्य</Title>
+          <View style={styles.actionsGrid}>
+            <TouchableOpacity style={styles.quickActionCard} onPress={() => navigation.navigate('AddFamily')}>
+              <View style={styles.quickActionIcon}>
+                <Text style={styles.quickActionIconText}>👨‍👩‍👧‍👦</Text>
+              </View>
+              <Text style={styles.quickActionText}>नया परिवार जोड़ें</Text>
+              <Text style={styles.quickActionDesc}>नए परिवार का पंजीकरण करें</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.quickActionCard} onPress={() => navigation.navigate('SearchFamilies')}>
+              <View style={styles.quickActionIcon}>
+                <Text style={styles.quickActionIconText}>🔍</Text>
+              </View>
+              <Text style={styles.quickActionText}>परिवार खोजें</Text>
+              <Text style={styles.quickActionDesc}>पंजीकृत परिवारों को खोजें</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.quickActionCard} onPress={() => navigation.navigate('PlantOptions')}>
+              <View style={styles.quickActionIcon}>
+                <Text style={styles.quickActionIconText}>🌱</Text>
+              </View>
+              <Text style={styles.quickActionText}>हमारे पौधे</Text>
+              <Text style={styles.quickActionDesc}>मूंगा पौधों की जानकारी</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.quickActionCard} onPress={() => navigation.navigate('ProgressReport')}>
+              <View style={styles.quickActionIcon}>
+                <Text style={styles.quickActionIconText}>📊</Text>
+              </View>
+              <Text style={styles.quickActionText}>प्रगति रिपोर्ट</Text>
+              <Text style={styles.quickActionDesc}>अभियान की प्रगति देखें</Text>
+            </TouchableOpacity>
+          </View>
+        </Surface>
+
+        {/* Center Information */}
+        <Surface style={styles.centerInfoContainer}>
+          <Title style={styles.sectionTitle}>केंद्र की जानकारी</Title>
+          <View style={styles.infoGrid}>
+            <View style={styles.infoItem}>
+              <Text style={styles.infoLabel}>केंद्र का नाम</Text>
+              <Text style={styles.infoValue}>{centerInfo.centerName}</Text>
             </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>{stats.distributedPlants}</Text>
-              <Text style={styles.statLabel}>वितरित पौधे</Text>
+            <View style={styles.infoItem}>
+              <Text style={styles.infoLabel}>केंद्र कोड</Text>
+              <Text style={styles.infoValue}>{centerInfo.centerCode}</Text>
             </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>{stats.activeFamilies}</Text>
-              <Text style={styles.statLabel}>सक्रिय परिवार</Text>
+            <View style={styles.infoItem}>
+              <Text style={styles.infoLabel}>कार्यकर्ता</Text>
+              <Text style={styles.infoValue}>{centerInfo.workerName}</Text>
+            </View>
+            <View style={styles.infoItem}>
+              <Text style={styles.infoLabel}>स्थिति</Text>
+              <Text style={styles.infoValue}>{centerInfo.status}</Text>
             </View>
           </View>
         </Surface>
 
-        {/* Quick Actions */}
-        <View style={styles.quickActionsContainer}>
-          <TouchableOpacity style={styles.quickActionCard} onPress={() => navigation.navigate('AddFamily')}>
-            <View style={styles.quickActionIcon}>
-              <Text style={styles.quickActionIconText}>👨‍👩‍👧‍👦</Text>
-            </View>
-            <Text style={styles.quickActionText}>नया परिवार जोड़ें</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.quickActionCard} onPress={() => navigation.navigate('SearchFamilies')}>
-            <View style={styles.quickActionIcon}>
-              <Text style={styles.quickActionIconText}>🔍</Text>
-            </View>
-            <Text style={styles.quickActionText}>परिवार खोजें</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.quickActionCard} onPress={() => navigation.navigate('PlantOptions')}>
-            <View style={styles.quickActionIcon}>
-              <Text style={styles.quickActionIconText}>🌱</Text>
-            </View>
-            <Text style={styles.quickActionText}>हमारे पौधे</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.quickActionCard} onPress={() => navigation.navigate('ProgressReport')}>
-            <View style={styles.quickActionIcon}>
-              <Text style={styles.quickActionIconText}>📊</Text>
-            </View>
-            <Text style={styles.quickActionText}>प्रगति रिपोर्ट</Text>
-          </TouchableOpacity>
-        </View>
+        {/* Tips Section */}
+        <Surface style={styles.tipsContainer}>
+          <Title style={styles.sectionTitle}>आज का टिप</Title>
+          <View style={styles.tipContent}>
+            <Text style={styles.tipEmoji}>💡</Text>
+            <Text style={styles.tipText}>
+              नियमित रूप से परिवारों से संपर्क करें और उनकी प्रगति की जानकारी लें। 
+              मूंगा पौधों की देखभाल के लिए उन्हें सही मार्गदर्शन दें।
+            </Text>
+          </View>
+        </Surface>
 
         {/* Recent Activities */}
         <Surface style={styles.activitiesContainer}>
@@ -407,22 +490,34 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   quickActionsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    padding: 20,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    elevation: 6,
     marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+  },
+  actionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 12,
   },
   quickActionCard: {
-    flex: 1,
-    backgroundColor: '#ffffff',
+    width: '48%',
+    backgroundColor: '#F8F9FA',
     borderRadius: 12,
     elevation: 4,
     padding: 16,
-    marginRight: 8,
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
+    marginBottom: 12,
   },
   quickActionIcon: {
     backgroundColor: '#E8F5E8',
@@ -439,6 +534,71 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#1a1a1a',
     textAlign: 'center',
+    marginBottom: 4,
+  },
+  quickActionDesc: {
+    fontSize: 11,
+    color: '#666666',
+    textAlign: 'center',
+    lineHeight: 14,
+  },
+  centerInfoContainer: {
+    padding: 20,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    elevation: 6,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+  },
+  infoGrid: {
+    gap: 12,
+  },
+  infoItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  infoLabel: {
+    fontSize: 14,
+    color: '#666666',
+    fontWeight: '500',
+  },
+  infoValue: {
+    fontSize: 14,
+    color: '#1a1a1a',
+    fontWeight: '600',
+  },
+  tipsContainer: {
+    padding: 20,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    elevation: 6,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+  },
+  tipContent: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  tipEmoji: {
+    fontSize: 24,
+    marginRight: 12,
+    marginTop: 2,
+  },
+  tipText: {
+    fontSize: 14,
+    color: '#666666',
+    lineHeight: 20,
+    flex: 1,
   },
   activitiesContainer: {
     padding: 20,
