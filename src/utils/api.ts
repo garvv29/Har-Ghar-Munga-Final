@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'; 
 
 // API Configuration
+// Last updated: July 21, 2025
 export const API_BASE_URL = 'http://165.22.208.62:5000'; // Your actual backend URL - keep this!
 
 // API Response Types
