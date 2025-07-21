@@ -4,19 +4,16 @@
     "slug": "HarGharMunga",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/adaptive-icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
-    "privacy": "public",
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true,
-      "allowScreenCapture": true,
-      "allowScreenRecording": true
+      "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
@@ -25,9 +22,15 @@
       },
       "edgeToEdgeEnabled": true,
       "allowBackup": true,
-      "allowScreenCapture": true,
-      "allowScreenRecording": true,
-      "package": "com.anonymous.HarGharMunga"
+      "package": "com.anonymous.HarGharMunga",
+      "versionCode": 1,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"

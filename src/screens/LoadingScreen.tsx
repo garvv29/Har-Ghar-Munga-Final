@@ -8,22 +8,41 @@ export default function LoadingScreen({ navigation }: { navigation: any }) {
   useEffect(() => {
     const checkConnectionAndNavigate = async () => {
       try {
+        console.log('🔍 Checking server connection...');
         const result = await apiService.testConnection();
+        console.log('📡 Connection result:', result);
 
         if (result.success) {
+          console.log('✅ Connection successful, navigating to Login');
           navigation.replace('Login');
         } else {
-          Alert.alert('नेटवर्क त्रुटि', 'सर्वर से कनेक्ट नहीं हो पा रहा है।');
+          console.log('❌ Connection failed:', result.message);
+          // Still navigate to Login even if connection fails
+          setTimeout(() => {
+            navigation.replace('Login');
+          }, 2000);
         }
       } catch (error) {
-        Alert.alert('त्रुटि', 'कुछ गलत हो गया।');
+        console.error('🚨 Error during connection check:', error);
+        // Navigate to Login even if there's an error
+        setTimeout(() => {
+          navigation.replace('Login');
+        }, 2000);
       } finally {
         setLoading(false);
       }
     };
 
+    // Add a timeout to prevent infinite loading
+    const timeout = setTimeout(() => {
+      console.log('⏰ Loading timeout, navigating to Login');
+      navigation.replace('Login');
+    }, 5000);
+
     checkConnectionAndNavigate();
-  }, []);
+
+    return () => clearTimeout(timeout);
+  }, [navigation]);
 
   return (
     <View style={styles.container}>

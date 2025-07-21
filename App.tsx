@@ -16,6 +16,7 @@ import PlantOptionsScreen from './src/screens/PlantOptionsScreen';
 import ProgressReportScreen from './src/screens/ProgressReportScreen';
 import FamilyProgressScreen from './src/screens/FamilyProgressScreen';
 import LoadingScreen from './src/screens/LoadingScreen';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 const Stack = createStackNavigator();
 
@@ -34,14 +35,17 @@ function LoginScreen({ navigation }: { navigation: any }) {
     setLoading(true);
     
     try {
-      // Test server connection (optional)
+      // Test server connection (optional) - but don't block login if it fails
       console.log('Testing connection to server...');
-      const connectionTest = await apiService.testConnection();
-      console.log('Connection test result:', connectionTest);
-
-      if (!connectionTest.success) {
-        Alert.alert('कनेक्शन त्रुटि', `सर्वर से कनेक्ट नहीं हो पा रहा है: ${connectionTest.message}`);
-        return;
+      try {
+        const connectionTest = await apiService.testConnection();
+        console.log('Connection test result:', connectionTest);
+        
+        if (!connectionTest.success) {
+          console.log('Connection test failed, but continuing with login...');
+        }
+      } catch (connectionError) {
+        console.log('Connection test error, but continuing with login...', connectionError);
       }
       
       console.log('Connection successful, attempting login...');
@@ -311,25 +315,31 @@ function LoginScreen({ navigation }: { navigation: any }) {
 export default function App() {
   return (
     <PaperProvider>
-      <NavigationContainer>
-        <Stack.Navigator 
-          initialRouteName="Loading"
-          screenOptions={{
-            headerShown: false,
+      <SafeAreaProvider>
+        <NavigationContainer
+          onStateChange={(state) => {
+            console.log('Navigation state changed:', state);
           }}
         >
-          <Stack.Screen name="Loading" component={LoadingScreen} />
-          <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen name="AnganwadiDashboard" component={AnganwadiDashboard} />
-          <Stack.Screen name="FamilyDashboard" component={FamilyDashboard} />
-          <Stack.Screen name="UploadPhoto" component={UploadPhotoScreen as any} />
-          <Stack.Screen name="AddFamily" component={AddFamilyScreen} />
-          <Stack.Screen name="SearchFamilies" component={SearchFamiliesScreen} />
-          <Stack.Screen name="PlantOptions" component={PlantOptionsScreen} />
-          <Stack.Screen name="ProgressReport" component={ProgressReportScreen} />
-          <Stack.Screen name="FamilyProgress" component={FamilyProgressScreen} />
-        </Stack.Navigator>
-      </NavigationContainer>
+          <Stack.Navigator 
+            initialRouteName="Login"
+            screenOptions={{
+              headerShown: false,
+              gestureEnabled: false,
+            }}
+          >
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="AnganwadiDashboard" component={AnganwadiDashboard} />
+            <Stack.Screen name="FamilyDashboard" component={FamilyDashboard} />
+            <Stack.Screen name="UploadPhoto" component={UploadPhotoScreen as any} />
+            <Stack.Screen name="AddFamily" component={AddFamilyScreen} />
+            <Stack.Screen name="SearchFamilies" component={SearchFamiliesScreen} />
+            <Stack.Screen name="PlantOptions" component={PlantOptionsScreen} />
+            <Stack.Screen name="ProgressReport" component={ProgressReportScreen} />
+            <Stack.Screen name="FamilyProgress" component={FamilyProgressScreen} />
+          </Stack.Navigator>
+        </NavigationContainer>
+      </SafeAreaProvider>
     </PaperProvider>
   );
 }

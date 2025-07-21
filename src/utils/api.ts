@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'; 
 
 // API Configuration
-export const API_BASE_URL = 'https://grx6djfl-5001.inc1.devtunnels.ms'; // Your actual backend URL - keep this!
+export const API_BASE_URL = 'http://165.22.208.62:5000'; // Your actual backend URL - keep this!
 
 // API Response Types
 export interface LoginResponse {
@@ -186,22 +186,37 @@ class ApiService {
   }
 
   // Test connection
-// In api.ts
-// ✅ Clean version of testConnection (inside ApiService class)
-async testConnection(): Promise<{ success: boolean; message: string }> {
-  try {
-    const response = await fetch(`${this.baseURL}/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ username: '', password: '' }), // dummy payload
-    });
-    return { success: response.status !== 404, message: `Status: ${response.status}` };
-  } catch (error) {
-    return { success: false, message: `Connection failed: ${error}` };
+  async testConnection(): Promise<{ success: boolean; message: string }> {
+    try {
+      console.log('🔍 Testing connection to:', this.baseURL);
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
+      const response = await fetch(`${this.baseURL}/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username: '', password: '' }), // dummy payload
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+      
+      console.log('📡 Connection test response status:', response.status);
+      return { success: response.status !== 404, message: `Status: ${response.status}` };
+    } catch (error) {
+      console.error('🚨 Connection test failed:', error);
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          return { success: false, message: 'Connection timeout' };
+        }
+        return { success: false, message: error.message };
+      }
+      return { success: false, message: 'Unknown error occurred' };
+    }
   }
-}
 
   // Fetch user data from external table
   async fetchUserFromExternalTable(contactNumber: string): Promise<{
